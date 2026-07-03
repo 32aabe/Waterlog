@@ -140,6 +140,11 @@ export default function Capture() {
   const busy = createSpot.isPending || createMoment.isPending || uploadMedia.isPending;
   const locating = !targetSpotId && !coords;
   const canSubmit = targetSpotId ? true : !!coords;
+  // null in local dev / mobile-LAN preview, where OAuth isn't configured —
+  // the whole capture flow (photo, water interaction, everything) still
+  // works up to Save, which then explains sign-in isn't available here
+  // instead of opening a broken link.
+  const loginUrl = getLoginUrl();
 
   const toggleBehavior = (index: number, behavior: string) => {
     setSightings(prev =>
@@ -556,10 +561,10 @@ export default function Capture() {
         <Button
           className="w-full shadow-lg"
           size="lg"
-          disabled={busy || saved || authLoading || (isAuthenticated && !canSubmit)}
+          disabled={busy || saved || authLoading || (isAuthenticated && !canSubmit) || (!isAuthenticated && !loginUrl)}
           onClick={() => {
             if (!isAuthenticated) {
-              window.open(getLoginUrl(), "_blank", "noopener,noreferrer");
+              if (loginUrl) window.open(loginUrl, "_blank", "noopener,noreferrer");
               return;
             }
             handleSubmit();
@@ -570,7 +575,7 @@ export default function Capture() {
           ) : busy || authLoading ? (
             <Spinner className="h-4 w-4" />
           ) : !isAuthenticated ? (
-            "Sign in to save"
+            loginUrl ? "Sign in to save" : "Sign-in unavailable"
           ) : locating ? (
             <>
               <Spinner className="h-4 w-4" /> Locating…
@@ -581,7 +586,9 @@ export default function Capture() {
         </Button>
         {!isAuthenticated && !authLoading && (
           <p className="mt-2 text-center text-xs text-muted-foreground">
-            Opens in a new tab — this photo stays right here.
+            {loginUrl
+              ? "Opens in a new tab — this photo stays right here."
+              : "OAuth isn't configured in this preview — saving needs a signed-in session."}
           </p>
         )}
       </div>

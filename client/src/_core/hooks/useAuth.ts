@@ -9,8 +9,13 @@ type UseAuthOptions = {
 };
 
 export function useAuth(options?: UseAuthOptions) {
-  const { redirectOnUnauthenticated = false, redirectPath = getLoginUrl() } =
-    options ?? {};
+  // redirectPath is intentionally left undefined here rather than
+  // defaulted to getLoginUrl() — that used to call it unconditionally on
+  // every useAuth() call regardless of whether redirectOnUnauthenticated
+  // was even true, which is also where "OAuth not configured" crashed in
+  // local/mobile-LAN preview. It's resolved lazily inside the effect
+  // below, only when actually about to redirect.
+  const { redirectOnUnauthenticated = false, redirectPath } = options ?? {};
   const utils = trpc.useUtils();
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
@@ -71,9 +76,18 @@ export function useAuth(options?: UseAuthOptions) {
     if (meQuery.isLoading || logoutMutation.isPending) return;
     if (state.user) return;
     if (typeof window === "undefined") return;
-    if (window.location.pathname === redirectPath) return;
 
-    window.location.href = redirectPath
+    // Resolved here, not as a default parameter, so it's only ever
+    // computed when a redirect is actually about to happen. If OAuth
+    // isn't configured (getLoginUrl() returns null), there's nowhere
+    // safe to send anyone — skip the redirect instead of navigating to
+    // a broken URL. Production, where sign-in is configured, is
+    // unaffected: this path behaves exactly as before there.
+    const target = redirectPath ?? getLoginUrl();
+    if (!target) return;
+    if (window.location.pathname === target) return;
+
+    window.location.href = target;
   }, [
     redirectOnUnauthenticated,
     redirectPath,

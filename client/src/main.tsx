@@ -19,7 +19,16 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
-  window.location.href = getLoginUrl();
+  // null in local/mobile-LAN preview, where OAuth isn't configured —
+  // there's nowhere to send anyone, so log it and let the page render
+  // its own signed-out state instead of navigating to a broken URL.
+  const loginUrl = getLoginUrl();
+  if (!loginUrl) {
+    console.warn("[Auth] Sign-in required, but OAuth isn't configured in this environment.");
+    return;
+  }
+
+  window.location.href = loginUrl;
 };
 
 queryClient.getQueryCache().subscribe(event => {

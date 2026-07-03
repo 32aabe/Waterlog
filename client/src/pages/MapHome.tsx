@@ -101,6 +101,11 @@ export default function MapHome() {
   const initialCenter =
     userCoords ?? (spots && spots.length > 0 ? { lat: Number(spots[0].latitude), lng: Number(spots[0].longitude) } : undefined);
 
+  // null in local dev / mobile-LAN preview, where OAuth isn't configured
+  // — the map (and everything else) still renders, sign-in just isn't
+  // offered as a live, broken link.
+  const loginUrl = getLoginUrl();
+
   return (
     <div className="flex min-h-[100dvh] flex-col pb-24">
       <header className="flex items-center justify-between gap-3 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3">
@@ -111,11 +116,16 @@ export default function MapHome() {
           </h1>
           <p className="text-xs text-muted-foreground">{APP_TAGLINE}</p>
         </div>
-        {!isAuthenticated && (
-          <Button size="sm" variant="outline" asChild>
-            <a href={getLoginUrl()}>Sign in</a>
-          </Button>
-        )}
+        {!isAuthenticated &&
+          (loginUrl ? (
+            <Button size="sm" variant="outline" asChild>
+              <a href={loginUrl}>Sign in</a>
+            </Button>
+          ) : (
+            <span className="text-xs text-muted-foreground" title="OAuth isn't configured in this preview">
+              Sign-in unavailable
+            </span>
+          ))}
       </header>
 
       <div className="relative mx-4 overflow-hidden rounded-2xl border border-border" style={{ height: "60vh" }}>

@@ -63,10 +63,18 @@ export function formatSighting(species: string | null, behaviors: string[]): str
   return "Unidentified bird";
 }
 
-// Generate login URL at runtime so redirect URI reflects the current origin.
-export const getLoginUrl = () => {
+// Generate login URL at runtime so redirect URI reflects the current
+// origin. Returns null (never throws) when OAuth isn't configured —
+// local dev and mobile-LAN preview don't set VITE_OAUTH_PORTAL_URL /
+// VITE_APP_ID, and building `new URL("undefined/app-auth")` would throw
+// "Invalid URL". Callers must treat null as "sign-in unavailable here,"
+// not fall back to a broken link. Production, where both vars are set,
+// behaves exactly as before.
+export const getLoginUrl = (): string | null => {
   const oauthPortalUrl = import.meta.env.VITE_OAUTH_PORTAL_URL;
   const appId = import.meta.env.VITE_APP_ID;
+  if (!oauthPortalUrl || !appId) return null;
+
   const redirectUri = `${window.location.origin}/api/oauth/callback`;
   const state = btoa(redirectUri);
 
