@@ -181,6 +181,37 @@ moment — nothing here is a new mechanism.
       *other* users of the same spot, a genuinely new mechanism.
 - [ ] Collections (user-curated groupings of spots).
 
+### Local mobile demo usability (2026-07-03)
+
+Three follow-up bugs found while actually trying to use local/phone-LAN
+preview as a real demo, after the getLoginUrl crash fix:
+
+- [x] **Local Dev Admin auth fallback.** OAuth needs a Manus app id and a
+      reachable OAuth server — neither exists locally, so every protected
+      action (saving a moment) permanently failed with no way to sign in.
+      `server/_core/context.ts` now synthesizes a persistent "Local Dev
+      Admin" account, gated on both `!isProduction` and `OAUTH_SERVER_URL`
+      being unset, so it can never activate in a real deployment. Capture
+      is savable locally as soon as a local `DATABASE_URL` is also set —
+      see README → "Local dev auth fallback" for what this does and
+      doesn't cover.
+- [x] **"[Auth] Missing session cookie" log spam.** This fired on every
+      single request in local dev (no cookie ever exists there) despite
+      being the normal, expected state for an anonymous visitor, not an
+      error. Now only logged when `isProduction`; behavior there is
+      unchanged.
+- [x] **Two real local-preview performance fixes**, not just perceived
+      slowness: (1) `Map.tsx` was sending a real network request to
+      `forge.butterfly-effect.dev` with an invalid key on every Map page
+      load, and `loadMapScript()`'s promise never resolved on failure —
+      it now skips the request entirely when no key is configured, and
+      resolves either way. (2) The Manus debug-collector script (821
+      lines, monkey-patches console/fetch/XHR, tracks every UI
+      interaction) was injected on every dev page load unconditionally;
+      it now only injects when `BUILT_IN_FORGE_API_URL` is set (a proxy
+      for "running inside Manus's own hosted environment"), which it
+      never is in a bare local checkout.
+
 ## Milestone 4 — AI layer
 
 - [ ] Daily/monthly AI recaps, auto species/behavior suggestion, best-photo

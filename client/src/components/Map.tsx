@@ -92,18 +92,31 @@ const FORGE_BASE_URL =
   "https://forge.butterfly-effect.dev";
 const MAPS_PROXY_URL = `${FORGE_BASE_URL}/v1/maps/proxy`;
 
-function loadMapScript() {
+function loadMapScript(): Promise<void> {
   return new Promise(resolve => {
+    if (!API_KEY) {
+      // No Forge Maps key configured — the common case for a bare local
+      // or phone-LAN preview. Resolve immediately instead of letting the
+      // browser attempt (and slowly fail, over a real network hop to
+      // forge.butterfly-effect.dev) a request with an invalid key — that
+      // failed request was a real contributor to slow page loads, and
+      // previously left the map hung forever besides, since onerror
+      // never resolved this promise.
+      console.warn("[Map] VITE_FRONTEND_FORGE_API_KEY not set — map tiles won't load in this preview.");
+      resolve();
+      return;
+    }
     const script = document.createElement("script");
     script.src = `${MAPS_PROXY_URL}/maps/api/js?key=${API_KEY}&v=weekly&libraries=marker,places,geocoding,geometry`;
     script.async = true;
     script.crossOrigin = "anonymous";
     script.onload = () => {
-      resolve(null);
+      resolve();
       script.remove(); // Clean up immediately
     };
     script.onerror = () => {
       console.error("Failed to load Google Maps script");
+      resolve();
     };
     document.head.appendChild(script);
   });
@@ -129,6 +142,11 @@ export function MapView({
     await loadMapScript();
     if (!mapContainer.current) {
       console.error("Map container not found");
+      return;
+    }
+    if (!window.google?.maps) {
+      // loadMapScript() skipped or failed (no API key / network error) —
+      // leave the container as an empty placeholder rather than throw.
       return;
     }
     map.current = new window.google.maps.Map(mapContainer.current, {

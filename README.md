@@ -109,6 +109,21 @@ touches an existing surface rather than adding a new one:
 - A restrained display typeface, reserved for a moment's note, a day
   header, or a spot's name — never for numbers or UI chrome.
 
+## Local dev auth fallback
+
+Real OAuth needs a Manus app id and a reachable OAuth server — neither
+exists in a bare local checkout or a phone-LAN preview. Rather than leave
+every protected action (saving a moment, viewing the journal) permanently
+broken there, `server/_core/context.ts` synthesizes a persistent
+**"Local Dev Admin"** account whenever `NODE_ENV` isn't `production` *and*
+`OAUTH_SERVER_URL` isn't set — both conditions, so this can never activate
+in a real deployment, or for anyone testing real OAuth locally. With a
+local `DATABASE_URL` configured, the app behaves as already signed in;
+without one, protected actions still correctly report "please login" —
+this removes the OAuth blocker, not the database one. See `MILESTONES.md`
+for what this does and doesn't cover (e.g. "sign out" is a no-op locally,
+since there's no real session to sign out of).
+
 ## Getting started
 
 ```bash
@@ -118,9 +133,11 @@ pnpm dev
 ```
 
 Without a filled-in `.env`, the app still builds and the shell/routing
-render, but anything backed by the database or OAuth (spots, moments,
-sign-in) will not function — see `.env.example` for what's required and
-why it isn't fabricated here.
+render. OAuth-backed sign-in won't function (expected — see "Local dev
+auth fallback" above, which covers this case), but with a local
+`DATABASE_URL` set, spots/moments/capture all work under the Local Dev
+Admin account. See `.env.example` for what's required and why it isn't
+fabricated here.
 
 ## Scripts
 

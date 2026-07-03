@@ -201,7 +201,14 @@ class SDKServer {
     cookieValue: string | undefined | null
   ): Promise<{ openId: string; appId: string; name: string } | null> {
     if (!cookieValue) {
-      console.warn("[Auth] Missing session cookie");
+      // A missing cookie is the normal, expected state for an anonymous
+      // visitor browsing a public procedure (e.g. the map, signed out) —
+      // in local/LAN dev without OAuth configured, every single request
+      // is in this state, so logging it there is pure spam, not a signal
+      // of anything wrong. Production behavior is unchanged.
+      if (ENV.isProduction) {
+        console.warn("[Auth] Missing session cookie");
+      }
       return null;
     }
 

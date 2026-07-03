@@ -79,7 +79,13 @@ function vitePluginManusDebugCollector(): Plugin {
     name: "manus-debug-collector",
 
     transformIndexHtml(html) {
-      if (process.env.NODE_ENV === "production") {
+      // Also skip outside the Manus-hosted environment (bare local dev,
+      // phone-LAN preview): this collector monkey-patches console/fetch/
+      // XHR and tracks every UI interaction to POST to /__manus__/logs,
+      // real overhead on every page load that only pays off when
+      // something is actually watching that endpoint. BUILT_IN_FORGE_API_URL
+      // is set by Manus's own infra, not present in a bare local checkout.
+      if (process.env.NODE_ENV === "production" || !process.env.BUILT_IN_FORGE_API_URL) {
         return html;
       }
       return {
