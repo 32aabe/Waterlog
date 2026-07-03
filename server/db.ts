@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import { nanoid } from "nanoid";
 import { InsertUser, users, locations, observations, type Location, type Observation } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { memoryStore } from "./memoryStore";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -17,6 +18,26 @@ export async function getDb() {
     }
   }
   return _db;
+}
+
+type Db = NonNullable<Awaited<ReturnType<typeof getDb>>>;
+type DataSource = { mode: "sql"; db: Db } | { mode: "memory" };
+
+/**
+ * Picks the real MySQL backend when DATABASE_URL is configured; falls
+ * back to the in-memory store (server/memoryStore.ts) only when NOT in
+ * production — so a bare local checkout or phone-LAN preview still works
+ * for Capture/Map/Journal/Spots/Profile, while a real deployment missing
+ * DATABASE_URL still fails loudly instead of silently demoing on fake
+ * data. This is the one gate every data function below goes through.
+ */
+async function resolveDataSource(): Promise<DataSource> {
+  const db = await getDb();
+  if (db) return { mode: "sql", db };
+  if (ENV.isProduction) {
+    throw new Error("Database not available");
+  }
+  return { mode: "memory" };
 }
 
 // Helper function to safely parse JSON array columns (behaviors, photoUrl)
@@ -39,6 +60,10 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 
   const db = await getDb();
   if (!db) {
+    if (!ENV.isProduction) {
+      await memoryStore.upsertUser(user);
+      return;
+    }
     console.warn("[Database] Cannot upsert user: database not available");
     return;
   }
@@ -94,6 +119,9 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) {
+    if (!ENV.isProduction) {
+      return memoryStore.getUserByOpenId(openId);
+    }
     console.warn("[Database] Cannot get user: database not available");
     return undefined;
   }
@@ -115,6 +143,11 @@ export async function getUserByOpenId(openId: string) {
 // per bird Sighting, or a single NO_SIGHTING row for a plain water-spot
 // check. Lifecycle state is computed at read time from recent observations
 // rather than stored.
+//
+// Everything below is backend-agnostic by construction: groupObservations-
+// IntoMoments, computeLifecycle, and toSpotSummary are pure functions over
+// already-fetched rows, so the same logic runs whether those rows came
+// from MySQL or the in-memory store (see resolveDataSource above).
 // ---------------------------------------------------------------------------
 
 export const UNIDENTIFIED_SPECIES = "Unidentified bird";
@@ -173,8 +206,6 @@ export type MomentSummary = {
   sightings: MomentSighting[];
 };
 
-type Db = NonNullable<Awaited<ReturnType<typeof getDb>>>;
-
 /**
  * Reassemble raw `observations` rows into Moments: rows sharing a non-null
  * `distanceFromWater` group key are sibling Sightings of one Moment (same
@@ -223,6 +254,8 @@ function groupObservationsIntoMoments(rows: Observation[]): MomentSummary[] {
   });
 }
 
+const LIFECYCLE_WINDOW_ROWS = 10;
+
 /**
  * A spot's lifecycle is derived, not stored: look at its most recent
  * Moment(s) rather than a persisted state column. A spot reported "dry" is
@@ -230,24 +263,13 @@ function groupObservationsIntoMoments(rows: Observation[]): MomentSummary[] {
  * report is "reawakened"; one with no report in over a week is "drying";
  * otherwise it's "alive". Groups rows into moments first so a
  * multi-sighting visit (several sibling rows) counts as one data point,
- * not several.
+ * not several. Pure — takes an already-fetched, already-capped row window;
+ * see fetchLifecycleRows for where those rows come from.
  */
-const LIFECYCLE_WINDOW_ROWS = 10;
-
-async function deriveLifecycle(
-  db: Db,
-  locationId: number,
+function computeLifecycle(
+  rows: Observation[],
   locationCreatedAt: Date,
-): Promise<{ state: LifecycleState; lastActivityAt: Date; recentMomentCount: number; recentMomentCountCapped: boolean }> {
-  // Generous window so a couple of recent multi-sighting moments' worth of
-  // sibling rows are still covered by "the last two moments".
-  const rows = await db
-    .select()
-    .from(observations)
-    .where(eq(observations.locationId, locationId))
-    .orderBy(desc(observations.createdAt))
-    .limit(LIFECYCLE_WINDOW_ROWS);
-
+): { state: LifecycleState; lastActivityAt: Date; recentMomentCount: number; recentMomentCountCapped: boolean } {
   if (rows.length === 0) {
     return { state: "alive", lastActivityAt: locationCreatedAt, recentMomentCount: 0, recentMomentCountCapped: false };
   }
@@ -268,6 +290,18 @@ async function deriveLifecycle(
     return { state: "drying", lastActivityAt: latest.capturedAt, recentMomentCount, recentMomentCountCapped };
   }
   return { state: "alive", lastActivityAt: latest.capturedAt, recentMomentCount, recentMomentCountCapped };
+}
+
+async function fetchLifecycleRows(source: DataSource, locationId: number): Promise<Observation[]> {
+  if (source.mode === "memory") {
+    return (await memoryStore.listObservationsByLocationId(locationId)).slice(0, LIFECYCLE_WINDOW_ROWS);
+  }
+  return source.db
+    .select()
+    .from(observations)
+    .where(eq(observations.locationId, locationId))
+    .orderBy(desc(observations.createdAt))
+    .limit(LIFECYCLE_WINDOW_ROWS);
 }
 
 function toSpotSummary(
@@ -298,40 +332,46 @@ export async function createSpot(data: {
   placeName?: string;
   spotType?: string;
 }): Promise<SpotSummary | null> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const result = await db.insert(locations).values({
+  const source = await resolveDataSource();
+  const rowData = {
     userId: data.creatorId,
-    name: data.name,
-    latitude: data.latitude.toString() as any,
-    longitude: data.longitude.toString() as any,
-    placeName: data.placeName,
+    name: data.name ?? null,
+    latitude: data.latitude.toString(),
+    longitude: data.longitude.toString(),
+    placeName: data.placeName ?? null,
     waterResourceType: data.spotType ?? "other",
-  });
+  };
 
-  return getSpotById(Number((result as any).insertId));
+  const insertedId =
+    source.mode === "memory"
+      ? (await memoryStore.insertLocation(rowData)).id
+      : Number((await source.db.insert(locations).values(rowData as any) as any).insertId);
+
+  return getSpotById(insertedId);
 }
 
 export async function listSpots(): Promise<SpotSummary[]> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const source = await resolveDataSource();
+  const rows =
+    source.mode === "memory"
+      ? await memoryStore.listLocations()
+      : await source.db.select().from(locations).orderBy(desc(locations.createdAt));
 
-  const rows = await db.select().from(locations).orderBy(desc(locations.createdAt));
   return Promise.all(
-    rows.map(async loc => toSpotSummary(loc, await deriveLifecycle(db, loc.id, loc.createdAt))),
+    rows.map(async loc => toSpotSummary(loc, computeLifecycle(await fetchLifecycleRows(source, loc.id), loc.createdAt))),
   );
 }
 
 export async function getSpotById(id: number): Promise<SpotSummary | null> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const source = await resolveDataSource();
+  const row =
+    source.mode === "memory"
+      ? await memoryStore.getLocationById(id)
+      : (await source.db.select().from(locations).where(eq(locations.id, id)).limit(1))[0];
+  if (!row) return null;
 
-  const rows = await db.select().from(locations).where(eq(locations.id, id)).limit(1);
-  if (rows.length === 0) return null;
-
-  const lifecycle = await deriveLifecycle(db, id, rows[0].createdAt);
-  return toSpotSummary(rows[0], lifecycle);
+  const lifecycle = computeLifecycle(await fetchLifecycleRows(source, id), row.createdAt);
+  return toSpotSummary(row, lifecycle);
 }
 
 /**
@@ -339,17 +379,18 @@ export async function getSpotById(id: number): Promise<SpotSummary | null> {
  * first.
  */
 export async function getSpotDetail(spotId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
   const spot = await getSpotById(spotId);
   if (!spot) return null;
 
-  const rows = await db
-    .select()
-    .from(observations)
-    .where(eq(observations.locationId, spotId))
-    .orderBy(desc(observations.createdAt));
+  const source = await resolveDataSource();
+  const rows =
+    source.mode === "memory"
+      ? await memoryStore.listObservationsByLocationId(spotId)
+      : await source.db
+          .select()
+          .from(observations)
+          .where(eq(observations.locationId, spotId))
+          .orderBy(desc(observations.createdAt));
 
   return { spot, moments: groupObservationsIntoMoments(rows) };
 }
@@ -378,12 +419,13 @@ export async function createMoment(data: {
     behaviors?: string[];
   }>;
 }): Promise<MomentSummary | null> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const source = await resolveDataSource();
 
-  const spotRows = await db.select().from(locations).where(eq(locations.id, data.spotId)).limit(1);
-  if (spotRows.length === 0) throw new Error("Water spot not found");
-  const spot = spotRows[0];
+  const spot =
+    source.mode === "memory"
+      ? await memoryStore.getLocationById(data.spotId)
+      : (await source.db.select().from(locations).where(eq(locations.id, data.spotId)).limit(1))[0];
+  if (!spot) throw new Error("Water spot not found");
 
   const now = new Date();
   const groupKey = nanoid(MOMENT_GROUP_KEY_LENGTH);
@@ -393,7 +435,7 @@ export async function createMoment(data: {
 
   let firstInsertedId: number | null = null;
   for (const sighting of sightingsToInsert) {
-    const result = await db.insert(observations).values({
+    const rowData = {
       userId: data.userId,
       locationId: data.spotId,
       date: now.toISOString().slice(0, 10),
@@ -409,8 +451,13 @@ export async function createMoment(data: {
       distanceFromWater: groupKey,
       notes: data.note,
       photoUrl: photoValue,
-    });
-    firstInsertedId ??= Number((result as any).insertId);
+    };
+
+    const insertedId =
+      source.mode === "memory"
+        ? (await memoryStore.insertObservation(rowData)).id
+        : Number((await source.db.insert(observations).values(rowData as any) as any).insertId);
+    firstInsertedId ??= insertedId;
   }
 
   return firstInsertedId !== null ? getMomentById(firstInsertedId) : null;
@@ -423,16 +470,20 @@ export async function createMoment(data: {
  * the row whose id was returned from the insert.
  */
 export async function getMomentById(id: number): Promise<MomentSummary | null> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const source = await resolveDataSource();
 
-  const rows = await db.select().from(observations).where(eq(observations.id, id)).limit(1);
-  if (rows.length === 0) return null;
+  const row =
+    source.mode === "memory"
+      ? await memoryStore.getObservationById(id)
+      : (await source.db.select().from(observations).where(eq(observations.id, id)).limit(1))[0];
+  if (!row) return null;
 
-  const groupKey = rows[0].distanceFromWater;
+  const groupKey = row.distanceFromWater;
   const siblingRows = groupKey
-    ? await db.select().from(observations).where(eq(observations.distanceFromWater, groupKey))
-    : rows;
+    ? source.mode === "memory"
+      ? await memoryStore.listObservationsByGroupKey(groupKey)
+      : await source.db.select().from(observations).where(eq(observations.distanceFromWater, groupKey))
+    : [row];
 
   return groupObservationsIntoMoments(siblingRows)[0] ?? null;
 }
@@ -443,14 +494,15 @@ export async function getMomentById(id: number): Promise<MomentSummary | null> {
  * place-first.
  */
 export async function listUserJournal(userId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const rows = await db
-    .select()
-    .from(observations)
-    .where(eq(observations.userId, userId))
-    .orderBy(desc(observations.createdAt));
+  const source = await resolveDataSource();
+  const rows =
+    source.mode === "memory"
+      ? await memoryStore.listObservationsByUserId(userId)
+      : await source.db
+          .select()
+          .from(observations)
+          .where(eq(observations.userId, userId))
+          .orderBy(desc(observations.createdAt));
 
   const moments = groupObservationsIntoMoments(rows);
 
@@ -463,10 +515,12 @@ export async function listUserJournal(userId: number) {
 }
 
 export async function getUserStats(userId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const source = await resolveDataSource();
+  const rows =
+    source.mode === "memory"
+      ? await memoryStore.listObservationsByUserId(userId)
+      : await source.db.select().from(observations).where(eq(observations.userId, userId));
 
-  const rows = await db.select().from(observations).where(eq(observations.userId, userId));
   const moments = groupObservationsIntoMoments(rows);
   const spotIds = new Set(rows.map(r => r.locationId).filter((id): id is number => id !== null));
   const species = new Set(

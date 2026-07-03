@@ -109,34 +109,58 @@ touches an existing surface rather than adding a new one:
 - A restrained display typeface, reserved for a moment's note, a day
   header, or a spot's name — never for numbers or UI chrome.
 
-## Local dev auth fallback
+## Zero-dependency local demo mode
 
-Real OAuth needs a Manus app id and a reachable OAuth server — neither
-exists in a bare local checkout or a phone-LAN preview. Rather than leave
-every protected action (saving a moment, viewing the journal) permanently
-broken there, `server/_core/context.ts` synthesizes a persistent
-**"Local Dev Admin"** account whenever `NODE_ENV` isn't `production` *and*
-`OAUTH_SERVER_URL` isn't set — both conditions, so this can never activate
-in a real deployment, or for anyone testing real OAuth locally. With a
-local `DATABASE_URL` configured, the app behaves as already signed in;
-without one, protected actions still correctly report "please login" —
-this removes the OAuth blocker, not the database one. See `MILESTONES.md`
-for what this does and doesn't cover (e.g. "sign out" is a no-op locally,
-since there's no real session to sign out of).
+No Docker, no MySQL, no Manus app id required. With **no `.env` at all**,
+Waterlog runs as a complete, working demo:
+
+- **Auth**: `server/_core/context.ts` synthesizes a persistent
+  **"Local Dev Admin"** account whenever `NODE_ENV` isn't `production`
+  *and* `OAUTH_SERVER_URL` isn't set — both conditions, so this can never
+  activate in a real deployment, or for anyone testing real OAuth
+  locally. The whole app is auto-"signed in" from the first request.
+- **Data**: `server/db.ts` falls back to an in-memory store
+  (`server/memoryStore.ts`) whenever no `DATABASE_URL` is configured *and*
+  `NODE_ENV` isn't `production` — same gating principle. Map, Journal,
+  Spots, and Profile all read from it transparently; every read/derive
+  function (lifecycle state, moment grouping, stats) is a pure function
+  over already-fetched rows, so it runs identically whether those rows
+  came from MySQL or memory. **Data resets whenever the dev server
+  restarts** — deliberate, not a bug; this exists to unblock demoing, not
+  to be a real persistence layer.
+- **Photos/voice notes**: `server/storage.ts` hands the captured
+  media back as a `data:` URL instead of throwing when Forge/S3 isn't
+  configured (same gating) — so a photo-first capture, the app's primary
+  flow, actually saves locally instead of failing partway through.
+
+**Production always requires both a real database and real OAuth** — if
+`DATABASE_URL`/`OAUTH_SERVER_URL` are missing there, the app fails loudly
+(`"Database not available"`, no auto-login) instead of silently running
+on fake data. Verified directly: running with `NODE_ENV=production` and
+no `.env` throws on every data call and `auth.me` returns `null`.
+
+One known limitation: "sign out" in Profile is a no-op locally (there's
+no real session to sign out of, since Local Dev Admin isn't cookie-based).
 
 ## Getting started
 
 ```bash
 pnpm install
-cp .env.example .env   # fill in a Waterlog-specific Manus app id, DB, and Forge keys
 pnpm dev
 ```
 
-Without a filled-in `.env`, the app still builds and the shell/routing
-render. OAuth-backed sign-in won't function (expected — see "Local dev
-auth fallback" above, which covers this case), but with a local
-`DATABASE_URL` set, spots/moments/capture all work under the Local Dev
-Admin account. See `.env.example` for what's required and why it isn't
+That's it for a local demo — Map/Journal/Spots/Profile/Capture (including
+photos) all work immediately, signed in as Local Dev Admin, against the
+in-memory store above. To connect a real database and/or real OAuth
+instead:
+
+```bash
+cp .env.example .env   # fill in a Waterlog-specific Manus app id, DB, and Forge keys
+pnpm db:push            # only needed once DATABASE_URL is set
+pnpm dev
+```
+
+See `.env.example` for what each variable does and why none are
 fabricated here.
 
 ## Scripts

@@ -191,10 +191,10 @@ preview as a real demo, after the getLoginUrl crash fix:
       action (saving a moment) permanently failed with no way to sign in.
       `server/_core/context.ts` now synthesizes a persistent "Local Dev
       Admin" account, gated on both `!isProduction` and `OAUTH_SERVER_URL`
-      being unset, so it can never activate in a real deployment. Capture
-      is savable locally as soon as a local `DATABASE_URL` is also set —
-      see README → "Local dev auth fallback" for what this does and
-      doesn't cover.
+      being unset, so it can never activate in a real deployment. At this
+      point still needed a local `DATABASE_URL` to actually persist
+      anything — see the next entry for why that's no longer required
+      either.
 - [x] **"[Auth] Missing session cookie" log spam.** This fired on every
       single request in local dev (no cookie ever exists there) despite
       being the normal, expected state for an anonymous visitor, not an
@@ -211,6 +211,37 @@ preview as a real demo, after the getLoginUrl crash fix:
       it now only injects when `BUILT_IN_FORGE_API_URL` is set (a proxy
       for "running inside Manus's own hosted environment"), which it
       never is in a bare local checkout.
+
+### Zero-dependency local demo mode (2026-07-03) ✅
+
+No Docker, no MySQL. The Local Dev Admin fallback above still needed a
+real `DATABASE_URL` to persist anything — this closes that last gap.
+
+- [x] **In-memory data store** (`server/memoryStore.ts`). `server/db.ts`
+      now resolves a `DataSource` per call — real MySQL when
+      `DATABASE_URL` is set, otherwise the in-memory store, but *only*
+      when `!isProduction`; production missing `DATABASE_URL` still
+      throws exactly as before. Every pure transform
+      (`groupObservationsIntoMoments`, `computeLifecycle`,
+      `toSpotSummary`) is backend-agnostic by construction — it operates
+      on already-fetched rows, so Map/Journal/Spots/Profile needed zero
+      client-side changes to read from memory instead of SQL. Data resets
+      on every server restart, deliberately.
+- [x] **Photo/voice storage fallback.** Found while verifying the above
+      end-to-end: photo capture — the app's primary flow — still failed
+      locally even with the auth/data fixes, because `uploadMedia` also
+      depends on Forge/S3 (`BUILT_IN_FORGE_API_URL`/`KEY`). `storagePut`
+      now hands captured media back as a `data:` URL instead of throwing,
+      gated the same way (`!isProduction` and Forge unconfigured).
+- [x] Verified with a real end-to-end run (headless Chromium): uploaded a
+      photo, tapped a water-interaction chip, saved — confirmed the
+      moment then appears correctly on Spot Story, Journal (with correct
+      stats), Spots list, and Profile, all auto-"signed in" as Local Dev
+      Admin, zero page errors. Separately confirmed data comes back empty
+      after a server restart, and that `NODE_ENV=production` with no
+      `.env` throws `"Database not available"` on every data call and
+      `auth.me` returns `null` (no auto-login) — production strictness
+      intact.
 
 ## Milestone 4 — AI layer
 

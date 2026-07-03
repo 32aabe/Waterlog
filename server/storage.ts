@@ -28,13 +28,28 @@ function appendHashSuffix(relKey: string): string {
   return `${relKey.slice(0, lastDot)}_${hash}${relKey.slice(lastDot)}`;
 }
 
+function toBase64(data: Buffer | Uint8Array | string): string {
+  if (typeof data === "string") return Buffer.from(data, "utf-8").toString("base64");
+  return Buffer.from(data).toString("base64");
+}
+
 export async function storagePut(
   relKey: string,
   data: Buffer | Uint8Array | string,
   contentType = "application/octet-stream",
 ): Promise<{ key: string; url: string }> {
-  const { forgeUrl, forgeKey } = getForgeConfig();
   const key = appendHashSuffix(normalizeKey(relKey));
+
+  if ((!ENV.forgeApiUrl || !ENV.forgeApiKey) && !ENV.isProduction) {
+    // Local dev without Forge/S3 configured: hand the data straight back
+    // as a data: URL instead of throwing — photos and voice notes still
+    // work end to end for a local demo. Fine for the small, ephemeral
+    // media a demo session captures; never runs in production, which
+    // still requires real Forge credentials (getForgeConfig below).
+    return { key, url: `data:${contentType};base64,${toBase64(data)}` };
+  }
+
+  const { forgeUrl, forgeKey } = getForgeConfig();
 
   // 1. Get presigned PUT URL from Forge
   const presignUrl = new URL("v1/storage/presign/put", forgeUrl + "/");
