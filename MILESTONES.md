@@ -14,6 +14,11 @@ Roadmap from the Ver.3 design proposal, tracked here as work lands.
   was doing with water. Water-interaction (behavior) fields lead; species
   trails as optional, secondary detail, in the capture flow and in every
   place a moment is displayed.
+- **Delight over features (from Milestone 3 on).** The goal is not to add
+  more functionality — it's an app people enjoy opening again after they
+  get home. Design for reflection, not only collection: the Living Water
+  Map, the personal journal, visual summaries, and the emotional pull of
+  revisiting a past moment matter more than new mechanisms.
 
 ## Milestone 1 — Foundation ✅
 
@@ -122,21 +127,65 @@ the product-language API maps onto those tables today.
 
 - [ ] Offline-friendly capture queue (PWA).
 
-## Milestone 3 — Living Water Map
+## Milestone 3 — Delight, reflection, emotional connection ✅
 
-- [ ] Time-based lifecycle decay (alive → drying → dry) via a scheduled job.
-- [ ] Marker clustering, "spots that need a visit" filter.
-- [ ] Reawakening push notifications (`notification.ts`).
+Shifted focus per product direction (2026-07-03): not more functionality,
+an app worth opening again. Everything below touches the Living Water
+Map, the Journal, visual summaries, or the emotional weight of a past
+moment — nothing here is a new mechanism.
 
-## Milestone 4 — Journal & stats
+- [x] **The map pulses.** Alive and reawakened spots animate a gentle
+      outward ring (CSS, disabled under `prefers-reduced-motion`) so the
+      map reads as a living place at a glance, without tapping anything.
+      *(Time-based lifecycle decay turned out not to need a scheduled
+      job — it was already computed at read time from days-since-activity
+      in Milestone 1; nothing to add there.)*
+- [x] **The map opens on your world, not San Francisco.** Centers on the
+      visitor's own (roughly) resolved location on load, falling back to
+      an existing spot, then to the old hardcoded default, only if
+      location isn't available. Also fixed a latent bug where spots
+      loading after the map script finished would never get plotted —
+      markers now re-render whenever the spot list changes, not just once.
+- [x] **Spot Story tells a life story, not a spec sheet.** A one-line
+      narrative strip — lifecycle dot, "discovered 12 days ago," a moment
+      count — replaces a bare label row. Moments are grouped by day like a
+      diary instead of one long flat list.
+- [x] **Journal is designed for reflection.** Entries group under
+      "Today" / "Yesterday" / weekday / date headers instead of a flat
+      feed; cards show the moment's photo, not just its text. An
+      **"On this day"** callout resurfaces a moment from the same
+      month/day in a prior year when one exists (gracefully absent for
+      new accounts — it's there for when the history exists).
+- [x] **Beautiful, honest visual summaries.** A weekly activity
+      sparkline (`ActivitySparkline`, following the dataviz skill's
+      stat-tile "trend" contract — de-emphasis hue for past weeks, accent
+      for the current one) sits with the existing moment/spot/species
+      stats in the Journal; Profile's stat tiles got the same visual
+      pass for consistency. Zero-activity weeks show a visible sliver
+      baseline rather than looking broken.
+- [x] **A moment worth celebrating.** Saving a moment that brings a dry
+      spot back to "reawakened" now surfaces a one-time toast — the map's
+      quietest, most emotionally-loaded state transition finally has a
+      human-visible payoff, not just a color change on a map marker.
+- [x] A restrained display typeface (`font-display`, system stack — no
+      font fetched) is reserved for emotionally-resonant text only: a
+      moment's note, a day header, a spot's name. Numbers and UI chrome
+      stay in the sans face, per the dataviz skill's own guidance against
+      display faces on stat values.
 
-- [ ] "On this day" memories, beautiful stat visualizations, collections.
+### Deferred (mechanism, not delight — revisit if usage shows a need)
 
-## Milestone 5 — AI layer
+- [ ] Marker clustering (not yet needed at current spot density).
+- [ ] Reawakening push notifications (`notification.ts`) — the in-app
+      toast covers the moment itself; a push notification is for
+      *other* users of the same spot, a genuinely new mechanism.
+- [ ] Collections (user-curated groupings of spots).
+
+## Milestone 4 — AI layer
 
 - [ ] Daily/monthly AI recaps, auto species/behavior suggestion, best-photo
       selection, shareable monthly stories.
 
-## Milestone 6 — Native
+## Milestone 5 — Native
 
 - [ ] Package the PWA as a native mobile app.

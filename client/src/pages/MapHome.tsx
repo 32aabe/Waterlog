@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { MapView } from "@/components/Map";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -17,6 +17,9 @@ const STATE_COLOR: Record<string, string> = {
   dry: "#9AA6A3",
   reawakened: "#1F5451",
 };
+// A spot that's alive or just reawakened pulses gently, so the map reads
+// as a living place at a glance, without tapping anything.
+const PULSING_STATES = new Set(["alive", "reawakened"]);
 
 export default function MapHome() {
   const { isAuthenticated } = useAuth();
@@ -24,43 +27,79 @@ export default function MapHome() {
   const { data: spots, isLoading } = trpc.spots.list.useQuery();
   const [selected, setSelected] = useState<SpotSummary | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
+  const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
+  const [mapReady, setMapReady] = useState(false);
 
-  const plotSpots = useCallback(
-    (map: google.maps.Map, spotList: SpotSummary[]) => {
-      spotList.forEach(spot => {
-        if (!window.google?.maps?.marker) return;
-        const pin = document.createElement("div");
-        pin.style.width = "16px";
-        pin.style.height = "16px";
-        pin.style.borderRadius = "50%";
-        pin.style.border = "2px solid white";
-        pin.style.boxShadow = "0 0 0 3px " + (STATE_COLOR[spot.lifecycleState] ?? "#3E8B85") + "33";
-        pin.style.background = STATE_COLOR[spot.lifecycleState] ?? "#3E8B85";
+  // Resolve the visitor's own location (once, briefly) so the map opens
+  // centered on somewhere that means something to them, rather than
+  // always defaulting to San Francisco. Falls back to an existing spot,
+  // then to the map component's own default, if location isn't available.
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationSettled, setLocationSettled] = useState(false);
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocationSettled(true);
+      return;
+    }
+    const timeout = setTimeout(() => setLocationSettled(true), 3000);
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocationSettled(true);
+        clearTimeout(timeout);
+      },
+      () => {
+        setLocationSettled(true);
+        clearTimeout(timeout);
+      },
+      { enableHighAccuracy: false, timeout: 3000, maximumAge: 5 * 60 * 1000 },
+    );
+    return () => clearTimeout(timeout);
+  }, []);
 
-        const marker = new google.maps.marker.AdvancedMarkerElement({
-          map,
-          position: { lat: Number(spot.latitude), lng: Number(spot.longitude) },
-          content: pin,
-          title: spot.name ?? getSpotTypeLabel(spot.spotType),
-        });
-        marker.addListener("click", () => setSelected(spot));
-      });
-    },
-    [],
-  );
+  const handleMapReady = useCallback((map: google.maps.Map) => {
+    mapRef.current = map;
+    setMapReady(true);
+  }, []);
 
-  const handleMapReady = useCallback(
-    (map: google.maps.Map) => {
-      mapRef.current = map;
-      if (spots && spots.length > 0) {
-        plotSpots(map, spots);
-        if (navigator.geolocation) {
-          // Keep the default center unless we already have spots to frame.
-        }
+  // Re-plot markers whenever the spot list (or the map itself) changes,
+  // rather than only once at map-ready time — spots.list can resolve
+  // after the map finishes loading its script.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !spots || !window.google?.maps?.marker) return;
+
+    markersRef.current.forEach(marker => (marker.map = null));
+    markersRef.current = [];
+
+    spots.forEach(spot => {
+      const pin = document.createElement("div");
+      const color = STATE_COLOR[spot.lifecycleState] ?? "#3E8B85";
+      pin.style.position = "relative";
+      pin.style.width = "16px";
+      pin.style.height = "16px";
+      pin.style.borderRadius = "50%";
+      pin.style.border = "2px solid white";
+      pin.style.boxShadow = "0 0 0 3px " + color + "33";
+      pin.style.background = color;
+      pin.style.color = color;
+      if (PULSING_STATES.has(spot.lifecycleState)) {
+        pin.classList.add("map-pulse");
       }
-    },
-    [spots, plotSpots],
-  );
+
+      const marker = new google.maps.marker.AdvancedMarkerElement({
+        map,
+        position: { lat: Number(spot.latitude), lng: Number(spot.longitude) },
+        content: pin,
+        title: spot.name ?? getSpotTypeLabel(spot.spotType),
+      });
+      marker.addListener("click", () => setSelected(spot));
+      markersRef.current.push(marker);
+    });
+  }, [spots, mapReady]);
+
+  const initialCenter =
+    userCoords ?? (spots && spots.length > 0 ? { lat: Number(spots[0].latitude), lng: Number(spots[0].longitude) } : undefined);
 
   return (
     <div className="flex min-h-[100dvh] flex-col pb-24">
@@ -80,8 +119,14 @@ export default function MapHome() {
       </header>
 
       <div className="relative mx-4 overflow-hidden rounded-2xl border border-border" style={{ height: "60vh" }}>
-        <MapView className="h-full w-full" onMapReady={handleMapReady} initialZoom={13} />
-        {isLoading && (
+        {locationSettled ? (
+          <MapView className="h-full w-full" initialCenter={initialCenter} onMapReady={handleMapReady} initialZoom={13} />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <Spinner />
+          </div>
+        )}
+        {locationSettled && isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/60">
             <Spinner />
           </div>
@@ -100,7 +145,7 @@ export default function MapHome() {
           <div className="rounded-2xl border border-border bg-card p-4 shadow-lg">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="font-medium text-foreground">
+                <p className="font-display text-base text-foreground">
                   {selected.name || getSpotTypeLabel(selected.spotType)}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -109,6 +154,12 @@ export default function MapHome() {
               </div>
               <Badge variant="secondary">{LIFECYCLE_LABELS[selected.lifecycleState]}</Badge>
             </div>
+            {selected.recentMomentCount > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {selected.recentMomentCountCapped ? `${selected.recentMomentCount}+` : selected.recentMomentCount} moment
+                {selected.recentMomentCount === 1 && !selected.recentMomentCountCapped ? "" : "s"} logged here
+              </p>
+            )}
             <div className="mt-3 flex gap-2">
               <Button size="sm" className="flex-1" onClick={() => navigate(`/spot/${selected.id}`)}>
                 Open story

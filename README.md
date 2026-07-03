@@ -83,6 +83,32 @@ model" above).
   one-tap alternatives to "New spot." Computed client-side from the
   already-fetched spot list — no new backend query.
 
+## Delight, not more features (Milestone 3)
+
+From Milestone 3 on, the goal stopped being "add functionality" and
+became "an app worth opening again after you get home." Everything here
+touches an existing surface rather than adding a new one:
+
+- **Living Water Map**: alive/reawakened spots pulse gently (CSS,
+  respects `prefers-reduced-motion`); the map opens centered on the
+  visitor's own location instead of a hardcoded San Francisco default;
+  markers now re-render whenever the spot list changes instead of only
+  once at map-ready time (a latent bug that could silently drop markers
+  loaded after the map script finished).
+- **Journal, designed for reflection**: entries group by day
+  ("Today"/"Yesterday"/weekday/date) instead of a flat list; an
+  **"On this day"** callout resurfaces a moment from the same date in a
+  prior year, when one exists.
+- **Spot Story as a life story**: a narrative strip ("discovered 12 days
+  ago · 4 moments so far") replaces a bare label row.
+- **Visual summaries**: a weekly activity sparkline (`ActivitySparkline`)
+  next to the existing stats, built per the dataviz skill's stat-tile
+  "trend" contract.
+- **One emotional payoff**: a one-time toast when a moment brings a dry
+  spot back to "reawakened."
+- A restrained display typeface, reserved for a moment's note, a day
+  header, or a spot's name — never for numbers or UI chrome.
+
 ## Getting started
 
 ```bash

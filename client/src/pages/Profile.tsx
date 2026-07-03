@@ -37,17 +37,20 @@ export default function Profile() {
       </div>
 
       {stats && (
-        <div className="mx-4 mt-4 grid grid-cols-3 gap-2">
-          {[
-            { label: "Moments", value: stats.totalMoments },
-            { label: "Spots visited", value: stats.spotsVisited },
-            { label: "Species seen", value: stats.uniqueSpecies },
-          ].map(item => (
-            <div key={item.label} className="rounded-xl border border-border bg-card p-3 text-center">
-              <p className="text-xl font-semibold tabular-nums text-foreground">{item.value}</p>
-              <p className="text-[11px] text-muted-foreground">{item.label}</p>
-            </div>
-          ))}
+        <div className="mx-4 mt-4 rounded-xl border border-border bg-card p-4">
+          <p className="mb-3 text-xs font-medium text-muted-foreground">Your Waterlog so far</p>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: "Moments", value: stats.totalMoments },
+              { label: "Spots visited", value: stats.spotsVisited },
+              { label: "Species seen", value: stats.uniqueSpecies },
+            ].map(item => (
+              <div key={item.label} className="text-center">
+                <p className="text-2xl font-semibold text-foreground">{item.value}</p>
+                <p className="text-[11px] text-muted-foreground">{item.label}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

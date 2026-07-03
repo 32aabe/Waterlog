@@ -136,6 +136,46 @@
   }
 }
 
+@layer base {
+  :root {
+    /* Reserved for emotionally-resonant text only — a moment's note, a
+       day header in the Journal, a spot's name — never for numbers,
+       labels, or UI chrome. System stack, so no font is fetched. */
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  /* A spot that's alive or just reawakened should read that way at a
+     glance on the map, without needing a tap. Ring pulses outward like a
+     ripple; disabled entirely under reduced-motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    .map-pulse::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 9999px;
+      background: currentColor;
+      opacity: 0.55;
+      animation: map-pulse-ring 2.2s ease-out infinite;
+    }
+  }
+  @keyframes map-pulse-ring {
+    0% {
+      transform: scale(1);
+      opacity: 0.55;
+    }
+    100% {
+      transform: scale(2.6);
+      opacity: 0;
+    }
+  }
+}
+
 @layer components {
   /**
    * Custom container utility that centers content and adds responsive padding.

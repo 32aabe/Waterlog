@@ -6,6 +6,14 @@ import { Spinner } from "@/components/ui/spinner";
 import { getSpotTypeLabel, LIFECYCLE_LABELS, formatSighting } from "@/const";
 import { ArrowLeft, Plus, Droplets } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { dayHeaderLabel, groupByDay } from "@/lib/dates";
+
+const STATE_DOT_COLOR: Record<string, string> = {
+  alive: "bg-chart-2",
+  drying: "bg-amber-600",
+  dry: "bg-muted-foreground/40",
+  reawakened: "bg-primary",
+};
 
 export default function SpotStory() {
   const params = useParams<{ id: string }>();
@@ -33,6 +41,8 @@ export default function SpotStory() {
   }
 
   const { spot, moments } = data;
+  const dayGroups = groupByDay(moments);
+  const momentCountLabel = spot.recentMomentCountCapped ? `${spot.recentMomentCount}+` : `${spot.recentMomentCount}`;
 
   return (
     <div className="min-h-[100dvh] pb-24">
@@ -41,7 +51,7 @@ export default function SpotStory() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-semibold text-foreground">
+          <h1 className="truncate font-display text-lg text-foreground">
             {spot.name || getSpotTypeLabel(spot.spotType)}
           </h1>
           <p className="truncate text-xs text-muted-foreground">
@@ -50,12 +60,22 @@ export default function SpotStory() {
         </div>
       </header>
 
-      <div className="mx-4 flex items-center gap-2">
+      {/* This spot's life story, in one line — the map's colored dot,
+          restated as a sentence, so the "living place" idea carries over
+          from the map to here. */}
+      <div className="mx-4 flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3">
+        <span className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${STATE_DOT_COLOR[spot.lifecycleState]}`} />
+        <p className="text-sm text-foreground">
+          <span className="font-medium">{LIFECYCLE_LABELS[spot.lifecycleState]}</span> ·{" "}
+          <span className="text-muted-foreground">
+            discovered {formatDistanceToNow(new Date(spot.firstSeenAt), { addSuffix: true })} · {momentCountLabel} moment
+            {spot.recentMomentCount === 1 && !spot.recentMomentCountCapped ? "" : "s"} so far
+          </span>
+        </p>
+      </div>
+
+      <div className="mx-4 mt-3 flex items-center gap-2">
         <Badge variant="secondary">{getSpotTypeLabel(spot.spotType)}</Badge>
-        <Badge>{LIFECYCLE_LABELS[spot.lifecycleState]}</Badge>
-        <span className="text-xs text-muted-foreground">
-          last activity {formatDistanceToNow(new Date(spot.lastActivityAt), { addSuffix: true })}
-        </span>
       </div>
 
       <div className="mx-4 mt-5 flex items-center justify-between">
@@ -65,42 +85,49 @@ export default function SpotStory() {
         </Button>
       </div>
 
-      <div className="mx-4 mt-3 space-y-3">
+      <div className="mx-4 mt-3">
         {moments.length === 0 && (
           <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
             No moments logged here yet. Be the first to record what this spot becomes.
           </div>
         )}
-        {moments.map(moment => (
-          <div key={moment.id} className="rounded-xl border border-border bg-card p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
-                {formatDistanceToNow(new Date(moment.capturedAt), { addSuffix: true })}
-              </p>
-              {moment.waterCondition && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Droplets className="h-3 w-3" /> {moment.waterCondition.replace("_", " ")}
-                </span>
-              )}
+        {dayGroups.map(group => (
+          <div key={group.key} className="mb-4">
+            <p className="mb-2 font-display text-sm text-muted-foreground">{dayHeaderLabel(group.date)}</p>
+            <div className="space-y-3">
+              {group.items.map(moment => (
+                <div key={moment.id} className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(moment.capturedAt), { addSuffix: true })}
+                    </p>
+                    {moment.waterCondition && (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Droplets className="h-3 w-3" /> {moment.waterCondition.replace("_", " ")}
+                      </span>
+                    )}
+                  </div>
+                  {moment.note && <p className="mt-2 font-display text-sm text-foreground">{moment.note}</p>}
+                  {moment.photoUrls.length > 0 && (
+                    <div className="mt-2 flex gap-2 overflow-x-auto">
+                      {moment.photoUrls.map((url, i) => (
+                        <img key={i} src={url} alt="" className="h-24 w-24 flex-shrink-0 rounded-lg object-cover" />
+                      ))}
+                    </div>
+                  )}
+                  {moment.sightings.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {moment.sightings.map(s => (
+                        <Badge key={s.id} variant={s.behaviors.length > 0 ? "default" : "outline"}>
+                          {formatSighting(s.species, s.behaviors)}
+                          {s.count && s.count > 1 ? ` ×${s.count}` : ""}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-            {moment.note && <p className="mt-2 text-sm text-foreground">{moment.note}</p>}
-            {moment.photoUrls.length > 0 && (
-              <div className="mt-2 flex gap-2 overflow-x-auto">
-                {moment.photoUrls.map((url, i) => (
-                  <img key={i} src={url} alt="" className="h-24 w-24 flex-shrink-0 rounded-lg object-cover" />
-                ))}
-              </div>
-            )}
-            {moment.sightings.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {moment.sightings.map(s => (
-                  <Badge key={s.id} variant={s.behaviors.length > 0 ? "default" : "outline"}>
-                    {formatSighting(s.species, s.behaviors)}
-                    {s.count && s.count > 1 ? ` ×${s.count}` : ""}
-                  </Badge>
-                ))}
-              </div>
-            )}
           </div>
         ))}
       </div>

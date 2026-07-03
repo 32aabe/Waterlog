@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { distanceMeters } from "@/lib/geo";
+import { toast } from "sonner";
 import { getLoginUrl, SPOT_TYPE_LABELS, getSpotTypeLabel, WATER_CONDITIONS, BEHAVIOR_OPTIONS, type SpotType } from "@/const";
 import { ArrowLeft, Camera, Plus, X, ChevronDown, Mic, Square } from "lucide-react";
 
@@ -203,6 +204,9 @@ export default function Capture() {
 
   const handleSubmit = async () => {
     try {
+      // Captured before the mutation so it reflects the spot's state
+      // going into this save, for the reawakening check below.
+      const lifecycleBeforeSave = existingSpot?.spot.lifecycleState;
       let resolvedSpotId = targetSpotId;
 
       if (!resolvedSpotId) {
@@ -246,6 +250,19 @@ export default function Capture() {
       });
 
       await utils.spots.list.invalidate();
+
+      // A spot coming back from dry is the one moment worth celebrating
+      // — a small, one-time payoff for noticing something most people
+      // would walk past.
+      if (lifecycleBeforeSave === "dry") {
+        const fresh = await utils.spots.getById.fetch({ id: resolvedSpotId });
+        if (fresh?.spot.lifecycleState === "reawakened") {
+          toast("This spot is alive again", {
+            description: "It had gone dry — now there's water, and you were the one who found it.",
+          });
+        }
+      }
+
       setSaved(true);
       setTimeout(() => navigate(`/spot/${resolvedSpotId}`), 700);
     } catch (err) {

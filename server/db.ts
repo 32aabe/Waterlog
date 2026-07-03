@@ -147,6 +147,12 @@ export type SpotSummary = {
   lifecycleState: LifecycleState;
   firstSeenAt: Date;
   lastActivityAt: Date;
+  /** From the same capped recent-activity window as lifecycle — a story
+   *  hint ("4 moments here"), not an exact lifetime total. */
+  recentMomentCount: number;
+  /** True if the window was fully used, so the real count may be higher
+   *  — the UI can render this as "10+" instead of a precise, wrong number. */
+  recentMomentCountCapped: boolean;
 };
 
 export type MomentSighting = {
@@ -226,11 +232,13 @@ function groupObservationsIntoMoments(rows: Observation[]): MomentSummary[] {
  * multi-sighting visit (several sibling rows) counts as one data point,
  * not several.
  */
+const LIFECYCLE_WINDOW_ROWS = 10;
+
 async function deriveLifecycle(
   db: Db,
   locationId: number,
   locationCreatedAt: Date,
-): Promise<{ state: LifecycleState; lastActivityAt: Date }> {
+): Promise<{ state: LifecycleState; lastActivityAt: Date; recentMomentCount: number; recentMomentCountCapped: boolean }> {
   // Generous window so a couple of recent multi-sighting moments' worth of
   // sibling rows are still covered by "the last two moments".
   const rows = await db
@@ -238,30 +246,33 @@ async function deriveLifecycle(
     .from(observations)
     .where(eq(observations.locationId, locationId))
     .orderBy(desc(observations.createdAt))
-    .limit(10);
+    .limit(LIFECYCLE_WINDOW_ROWS);
 
   if (rows.length === 0) {
-    return { state: "alive", lastActivityAt: locationCreatedAt };
+    return { state: "alive", lastActivityAt: locationCreatedAt, recentMomentCount: 0, recentMomentCountCapped: false };
   }
 
-  const [latest, prior] = groupObservationsIntoMoments(rows);
+  const moments = groupObservationsIntoMoments(rows);
+  const [latest, prior] = moments;
   const daysSinceLatest = (Date.now() - new Date(latest.capturedAt).getTime()) / 86_400_000;
+  const recentMomentCount = moments.length;
+  const recentMomentCountCapped = rows.length === LIFECYCLE_WINDOW_ROWS;
 
   if (latest.waterCondition === "dry") {
-    return { state: "dry", lastActivityAt: latest.capturedAt };
+    return { state: "dry", lastActivityAt: latest.capturedAt, recentMomentCount, recentMomentCountCapped };
   }
   if (prior?.waterCondition === "dry" && daysSinceLatest < 3) {
-    return { state: "reawakened", lastActivityAt: latest.capturedAt };
+    return { state: "reawakened", lastActivityAt: latest.capturedAt, recentMomentCount, recentMomentCountCapped };
   }
   if (daysSinceLatest > 7) {
-    return { state: "drying", lastActivityAt: latest.capturedAt };
+    return { state: "drying", lastActivityAt: latest.capturedAt, recentMomentCount, recentMomentCountCapped };
   }
-  return { state: "alive", lastActivityAt: latest.capturedAt };
+  return { state: "alive", lastActivityAt: latest.capturedAt, recentMomentCount, recentMomentCountCapped };
 }
 
 function toSpotSummary(
   loc: Location,
-  lifecycle: { state: LifecycleState; lastActivityAt: Date },
+  lifecycle: { state: LifecycleState; lastActivityAt: Date; recentMomentCount: number; recentMomentCountCapped: boolean },
 ): SpotSummary {
   return {
     id: loc.id,
@@ -274,6 +285,8 @@ function toSpotSummary(
     lifecycleState: lifecycle.state,
     firstSeenAt: loc.createdAt,
     lastActivityAt: lifecycle.lastActivityAt,
+    recentMomentCount: lifecycle.recentMomentCount,
+    recentMomentCountCapped: lifecycle.recentMomentCountCapped,
   };
 }
 
