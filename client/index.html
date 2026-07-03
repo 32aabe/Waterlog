@@ -17,10 +17,13 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script
-      defer
-      src="%VITE_ANALYTICS_ENDPOINT%/umami"
-      data-website-id="%VITE_ANALYTICS_WEBSITE_ID%"></script>
+    <!-- Analytics loads conditionally from client/src/lib/analytics.ts
+         instead of a raw percent-wrapped env placeholder in this file.
+         Vite's HTML env substitution matches that percent-wrapped token
+         syntax anywhere in the raw file text, comments included, and
+         leaves it unreplaced (not stripped) when the variable is unset —
+         the browser then requests the literal placeholder string as a
+         script src, which isn't a valid URI and crashes local preview. -->
   </body>
 
 </html>
