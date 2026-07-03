@@ -35,6 +35,9 @@ export type InsertLocationInput = {
   longitude: string;
   placeName?: string | null;
   waterResourceType?: string | null;
+  /** Seed-data only in practice — lets a demo spot read as "discovered N
+   *  days ago" instead of everything being "just now". */
+  createdAt?: Date;
 };
 
 export type InsertObservationInput = {
@@ -53,6 +56,9 @@ export type InsertObservationInput = {
   distanceFromWater?: string | null;
   notes?: string | null;
   photoUrl?: string | null;
+  weather?: string | null;
+  /** Seed-data only in practice — backdates a demo moment. */
+  createdAt?: Date;
 };
 
 export const memoryStore = {
@@ -98,7 +104,7 @@ export const memoryStore = {
   },
 
   async insertLocation(data: InsertLocationInput): Promise<Location> {
-    const now = new Date();
+    const now = data.createdAt ?? new Date();
     const row: Location = {
       id: nextLocationId++,
       userId: data.userId,
@@ -126,7 +132,7 @@ export const memoryStore = {
   },
 
   async insertObservation(data: InsertObservationInput): Promise<Observation> {
-    const now = new Date();
+    const now = data.createdAt ?? new Date();
     const row: Observation = {
       id: nextObservationId++,
       userId: data.userId,
@@ -151,7 +157,7 @@ export const memoryStore = {
       iceCoverage: null,
       humanDisturbance: null,
       temperature: null,
-      weather: null,
+      weather: data.weather ?? null,
       wind: null,
       precipitation: null,
       notes: data.notes ?? null,

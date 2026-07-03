@@ -151,8 +151,17 @@ pnpm dev
 
 That's it for a local demo — Map/Journal/Spots/Profile/Capture (including
 photos) all work immediately, signed in as Local Dev Admin, against the
-in-memory store above. To connect a real database and/or real OAuth
-instead:
+in-memory store above. To see the app with real volume instead of an
+empty state, seed a handful of demo spots/moments (in a second terminal,
+while `pnpm dev` is still running):
+
+```bash
+pnpm seed
+```
+
+Dev-only — blocked in production, and safe to re-run any time (adds
+another batch rather than erroring). To connect a real database and/or
+real OAuth instead:
 
 ```bash
 cp .env.example .env   # fill in a Waterlog-specific Manus app id, DB, and Forge keys
@@ -166,7 +175,8 @@ fabricated here.
 ## Scripts
 
 Same as Ver.2: `pnpm dev`, `pnpm build`, `pnpm start`, `pnpm check`
-(`tsc --noEmit`), `pnpm test`, `pnpm db:push`.
+(`tsc --noEmit`), `pnpm test`, `pnpm db:push`. Ver.3-only: `pnpm seed`
+(dev-only demo data, see above).
 
 ## Status
 

@@ -42,14 +42,94 @@ export const LIFECYCLE_LABELS: Record<LifecycleState, string> = {
   reawakened: "Reawakened",
 };
 
+// Water condition = the spot's current state (how much water, or ice,
+// is there right now) — distinct from spot type, which is what kind of
+// place it is (see SPOT_TYPE_LABELS above). Values stay in English in
+// storage regardless of UI language; `label` is the only thing a future
+// Korean UI would ever translate.
 export const WATER_CONDITIONS = [
   { value: "full", label: "Full" },
   { value: "receding", label: "Receding" },
   { value: "puddle_only", label: "Puddle only" },
   { value: "dry", label: "Dry" },
+  { value: "frozen", label: "Frozen" },
+  { value: "partially_frozen", label: "Partially frozen" },
+  { value: "snow_ice_present", label: "Snow/ice present" },
 ] as const;
 
-export const BEHAVIOR_OPTIONS = ["Drinking", "Bathing", "Foraging", "Wading", "Preening", "Resting"];
+// {value, label} rather than plain strings, same reason as
+// WATER_CONDITIONS above: `value` is what's stored (and stays fixed,
+// English, comparable across app versions); `label` is the only part a
+// future Korean UI would swap. Includes both "Resting" and "Perching" —
+// Ver.2 treated them as distinct behaviors (grounded vs. perched), so
+// keeping both preserves data consistency rather than guessing which one
+// a past entry meant.
+export const BEHAVIOR_OPTIONS = [
+  { value: "Drinking", label: "Drinking" },
+  { value: "Bathing", label: "Bathing" },
+  { value: "Foraging", label: "Foraging" },
+  { value: "Wading", label: "Wading" },
+  { value: "Preening", label: "Preening" },
+  { value: "Perching", label: "Perching" },
+  { value: "Resting", label: "Resting" },
+] as const;
+
+// A starting point for species suggestions, not an exhaustive taxonomy —
+// common birds likely to turn up at an urban or suburban water spot.
+// Purely a client-side filter/suggestion aid: typing any other name is
+// always allowed and stored exactly as typed.
+export const COMMON_SPECIES = [
+  "House Sparrow",
+  "European Starling",
+  "Rock Pigeon",
+  "American Robin",
+  "Mourning Dove",
+  "American Crow",
+  "Common Grackle",
+  "Northern Cardinal",
+  "Blue Jay",
+  "Black-capped Chickadee",
+  "House Finch",
+  "American Goldfinch",
+  "Dark-eyed Junco",
+  "Song Sparrow",
+  "Red-winged Blackbird",
+  "Mallard",
+  "Canada Goose",
+  "American Coot",
+  "Ring-billed Gull",
+  "Herring Gull",
+  "Great Blue Heron",
+  "Great Egret",
+  "Snowy Egret",
+  "Double-crested Cormorant",
+  "Belted Kingfisher",
+  "Killdeer",
+  "Spotted Sandpiper",
+  "Wood Duck",
+  "Bufflehead",
+  "Pied-billed Grebe",
+  "Red-tailed Hawk",
+  "Cooper's Hawk",
+  "Peregrine Falcon",
+  "Barn Swallow",
+  "Tree Swallow",
+  "Chimney Swift",
+  "Ruby-throated Hummingbird",
+  "Downy Woodpecker",
+  "Northern Flicker",
+  "Carolina Wren",
+  "Northern Mockingbird",
+  "European Goldfinch",
+  "Eurasian Collared-Dove",
+  "Black-billed Magpie",
+  "Common Moorhen",
+  "Wood Stork",
+  "White Ibis",
+  "Sandhill Crane",
+  "Osprey",
+  "Bald Eagle",
+];
 
 // The interaction is the observation; the species is a secondary detail
 // about it — so behaviors lead, species trails, and an unidentified bird

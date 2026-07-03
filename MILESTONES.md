@@ -243,6 +243,75 @@ real `DATABASE_URL` to persist anything — this closes that last gap.
       `auth.me` returns `null` (no auto-login) — production strictness
       intact.
 
+## Content & clarity polish pass (2026-07-03)
+
+User feedback after trying the demo with real intent to use it, not just
+verify it doesn't crash. Framed as a correction pass, not new features —
+five items implemented; four more scoped for later (below).
+
+- [x] **Behavior terminology.** Ver.2 (local code) has both "Resting" and
+      "Perching" as distinct behaviors — Ver.3 had simplified down to
+      "Resting" only. Added "Perching" back rather than replacing
+      "Resting", since Ver.2 treated them as different behaviors and
+      guessing which one a past entry meant would reduce consistency, not
+      improve it. `BEHAVIOR_OPTIONS` (and `WATER_CONDITIONS`, already
+      shaped this way) are now `{value, label}` pairs everywhere — the
+      concrete mechanism for translating UI text later without ever
+      touching a stored value (see the Korean UI note below).
+- [x] **Species suggestions.** Ver.2's species field turned out to be a
+      plain, no-suggestions text input too (same pattern as everywhere
+      else checked against Ver.2 in this project) — designed fresh rather
+      than "restored". A ~50-bird common-species list, filtered as you
+      type, shown as tap-to-fill chips (`SpeciesField` in Capture.tsx) —
+      matches the existing chip language rather than introducing a new
+      combobox/popover pattern. Typing any other name is always allowed.
+- [x] **Navigation bug, found and fixed.** The back arrow called
+      `navigate(-1 as unknown as string)` — wouter takes this literally
+      as a path string, producing the URL `/-1`, which matches no route
+      → 404. Reproduced with Playwright before fixing. Fix: plain
+      `window.history.back()`. Re-verified with a realistic
+      Map→Capture→back click sequence, not just a direct URL check.
+- [x] **Clearer water/spot fields.** "Water level" → "Water condition"
+      (matches the user's own framing exactly), with three ice-related
+      values added: Frozen, Partially frozen, Snow/ice present — scoped
+      into water condition rather than a separate "ice" section, since
+      that's how the user described the concept and it needed no new UI.
+      "What kind of spot is this?" gets a one-line clarifier
+      ("The place itself, not today's water condition") so the two
+      fields read as distinct at a glance.
+- [x] **Local demo seed data.** `pnpm seed` (while `pnpm dev` is running)
+      hits a dev-only route (blocked in production, same as everything
+      else dev-only in this project) that populates 5 spots spanning
+      different types and lifecycle states — including one that
+      demonstrates "reawakened" and one moment backdated to exactly one
+      year ago today, to actually exercise the Journal's "On this day"
+      callout — plus placeholder photos (inline SVG data URIs, no
+      external dependency), weather values, and a multi-sighting moment.
+      Required adding optional, server-internal-only `createdAt`/
+      `capturedAt` overrides to `createSpot`/`createMoment` — never in
+      the tRPC router's input schema, so no real request can backdate
+      anything.
+- [x] Verified end-to-end with Playwright against the seeded data: all 5
+      spots show their intended lifecycle state (alive/alive/dry/
+      reawakened/alive), Journal shows correct 8/5/5 stats and the "On
+      this day" callout, multi-sighting renders as "Drinking, Wading ·
+      Mallard", zero page errors throughout.
+
+### Deferred from this pass (scoped, not implemented)
+
+- [ ] **Korean UI strings.** Labels are now structured to support this
+      (see behavior terminology above) — the translation work itself is
+      separate.
+- [ ] **Weather/wind/temperature capture UI.** The columns already exist
+      (unused in the capture flow); the seed data populates `weather` to
+      be ready for it, but there's no UI to set it from Capture yet.
+- [ ] **CSV export.** Scope as its own pass — likely a Profile-page
+      action against `listUserJournal`, Excel format later.
+- [ ] **Warmer/calmer visual direction.** "Less generic dashboard, more
+      personal field journal" is a real, distinct design pass (typography,
+      color, layout rhythm) — deserves its own dedicated look rather than
+      being bundled into this bug-fix/content pass.
+
 ## Milestone 4 — AI layer
 
 - [ ] Daily/monthly AI recaps, auto species/behavior suggestion, best-photo

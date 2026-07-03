@@ -8,6 +8,28 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { ENV } from "./env";
+import { seedDemoData } from "../seedDemoData";
+
+// Dev-only: populates the local demo store with a handful of varied
+// spots/moments so the app can be looked at with real volume. Blocked in
+// production at the route level (in addition to seedDemoData's own
+// guard) so this is never even reachable there. Trigger with `pnpm seed`
+// while `pnpm dev` is running.
+function registerDevSeedRoute(app: express.Express) {
+  app.post("/api/dev/seed-demo-data", async (_req, res) => {
+    if (ENV.isProduction) {
+      res.status(403).json({ error: "Not available in production" });
+      return;
+    }
+    try {
+      const result = await seedDemoData();
+      res.json({ success: true, ...result });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+}
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -36,6 +58,7 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+  registerDevSeedRoute(app);
   // tRPC API
   app.use(
     "/api/trpc",

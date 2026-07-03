@@ -331,6 +331,11 @@ export async function createSpot(data: {
   longitude: number;
   placeName?: string;
   spotType?: string;
+  /** Server-internal only — not in the tRPC router's input schema, so no
+   *  real request can backdate a spot. Lets server/seedDemoData.ts create
+   *  spots that read as "discovered N days ago" instead of everything
+   *  being "just now". */
+  createdAt?: Date;
 }): Promise<SpotSummary | null> {
   const source = await resolveDataSource();
   const rowData = {
@@ -340,6 +345,7 @@ export async function createSpot(data: {
     longitude: data.longitude.toString(),
     placeName: data.placeName ?? null,
     waterResourceType: data.spotType ?? "other",
+    ...(data.createdAt ? { createdAt: data.createdAt, updatedAt: data.createdAt } : {}),
   };
 
   const insertedId =
@@ -418,6 +424,12 @@ export async function createMoment(data: {
     count?: number;
     behaviors?: string[];
   }>;
+  /** Server-internal only, both below — not in the tRPC router's input
+   *  schema, so no real request can backdate a moment or set weather
+   *  directly (weather capture isn't a capture-flow field yet). Used by
+   *  server/seedDemoData.ts. */
+  capturedAt?: Date;
+  weather?: string;
 }): Promise<MomentSummary | null> {
   const source = await resolveDataSource();
 
@@ -427,7 +439,7 @@ export async function createMoment(data: {
       : (await source.db.select().from(locations).where(eq(locations.id, data.spotId)).limit(1))[0];
   if (!spot) throw new Error("Water spot not found");
 
-  const now = new Date();
+  const now = data.capturedAt ?? new Date();
   const groupKey = nanoid(MOMENT_GROUP_KEY_LENGTH);
   const photoValue =
     data.photoUrls && data.photoUrls.length > 0 ? JSON.stringify(data.photoUrls) : null;
@@ -451,6 +463,8 @@ export async function createMoment(data: {
       distanceFromWater: groupKey,
       notes: data.note,
       photoUrl: photoValue,
+      weather: data.weather,
+      ...(data.capturedAt ? { createdAt: data.capturedAt, updatedAt: data.capturedAt } : {}),
     };
 
     const insertedId =

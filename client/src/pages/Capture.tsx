@@ -9,7 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { distanceMeters } from "@/lib/geo";
 import { toast } from "sonner";
-import { getLoginUrl, SPOT_TYPE_LABELS, getSpotTypeLabel, WATER_CONDITIONS, BEHAVIOR_OPTIONS, type SpotType } from "@/const";
+import { getLoginUrl, SPOT_TYPE_LABELS, getSpotTypeLabel, WATER_CONDITIONS, BEHAVIOR_OPTIONS, COMMON_SPECIES, type SpotType } from "@/const";
 import { ArrowLeft, Camera, Plus, X, ChevronDown, Mic, Square } from "lucide-react";
 
 function blobToDataUrl(blob: Blob): Promise<string> {
@@ -19,6 +19,46 @@ function blobToDataUrl(blob: Blob): Promise<string> {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
+}
+
+function speciesSuggestions(query: string): string[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return COMMON_SPECIES.filter(s => s.toLowerCase().includes(q)).slice(0, 6);
+}
+
+// A species field that suggests instead of requiring the full name typed
+// out — tapping a suggestion fills the field, but typing anything else is
+// always allowed and stored exactly as typed.
+function SpeciesField({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  const suggestions = speciesSuggestions(value);
+  return (
+    <div>
+      <Input placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)} />
+      {suggestions.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {suggestions.map(s => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => onChange(s)}
+              className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Every choice here is measured against one scenario: someone stops for ten
@@ -278,7 +318,7 @@ export default function Capture() {
   return (
     <div className="min-h-[100dvh] pb-40">
       <header className="flex items-center gap-3 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3">
-        <Button size="icon" variant="ghost" onClick={() => navigate(-1 as unknown as string)}>
+        <Button size="icon" variant="ghost" onClick={() => window.history.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
@@ -394,15 +434,15 @@ export default function Capture() {
           <div className="flex flex-wrap gap-1.5">
             {BEHAVIOR_OPTIONS.map(b => (
               <button
-                key={b}
+                key={b.value}
                 type="button"
-                onClick={() => toggleBehavior(0, b)}
+                onClick={() => toggleBehavior(0, b.value)}
                 className={cn(
                   "rounded-full border px-3 py-1.5 text-xs font-medium",
-                  sightings[0].behaviors.includes(b) ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                  sightings[0].behaviors.includes(b.value) ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
                 )}
               >
-                {b}
+                {b.label}
               </button>
             ))}
           </div>
@@ -424,22 +464,22 @@ export default function Capture() {
               <div className="flex flex-wrap gap-1.5">
                 {BEHAVIOR_OPTIONS.map(b => (
                   <button
-                    key={b}
+                    key={b.value}
                     type="button"
-                    onClick={() => toggleBehavior(index, b)}
+                    onClick={() => toggleBehavior(index, b.value)}
                     className={cn(
                       "rounded-full border px-3 py-1 text-xs",
-                      s.behaviors.includes(b) ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                      s.behaviors.includes(b.value) ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
                     )}
                   >
-                    {b}
+                    {b.label}
                   </button>
                 ))}
               </div>
-              <Input
+              <SpeciesField
                 placeholder="Which bird, if you know (optional)"
                 value={s.species}
-                onChange={e => setSightingSpecies(index, e.target.value)}
+                onChange={v => setSightingSpecies(index, v)}
               />
             </div>
           );
@@ -450,11 +490,13 @@ export default function Capture() {
           </button>
         )}
 
-        {/* Water level — the spot's own state, distinct from what the
-            bird was doing above. Still a single tap, but secondary to
-            the interaction itself. */}
+        {/* Water condition — the spot's current state (how much water,
+            or ice, is here right now), distinct from what the bird was
+            doing above, and distinct from spot type below (what kind of
+            place this is, not what it looks like today). Still a single
+            tap, but secondary to the interaction itself. */}
         <div>
-          <p className="mb-1.5 text-xs font-medium text-muted-foreground">Water level</p>
+          <p className="mb-1.5 text-xs font-medium text-muted-foreground">Water condition</p>
           <div className="flex flex-wrap gap-1.5">
             {WATER_CONDITIONS.map(c => (
               <button
@@ -489,7 +531,8 @@ export default function Capture() {
           <div className="space-y-3 rounded-xl border border-border bg-card p-3">
             {!targetSpotId && (
               <div>
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">What kind of spot is this?</p>
+                <p className="text-xs font-medium text-muted-foreground">What kind of spot is this?</p>
+                <p className="mb-1.5 text-[11px] text-muted-foreground">The place itself, not today's water condition</p>
                 <div className="flex flex-wrap gap-1.5">
                   {Object.entries(SPOT_TYPE_LABELS).map(([key, label]) => (
                     <button
@@ -544,10 +587,10 @@ export default function Capture() {
               {voiceError && <p className="mt-1 text-xs text-destructive">{voiceError}</p>}
             </div>
 
-            <Input
+            <SpeciesField
               placeholder="Which bird, if you know (optional)"
               value={sightings[0].species}
-              onChange={e => setSightingSpecies(0, e.target.value)}
+              onChange={v => setSightingSpecies(0, v)}
             />
           </div>
         )}

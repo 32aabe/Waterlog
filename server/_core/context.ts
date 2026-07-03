@@ -29,7 +29,7 @@ let localDevUserPromise: Promise<User | null> | null = null;
  * Admin" account instead. Memoized so repeated requests reuse the same
  * DB row rather than racing to create it.
  */
-async function getOrCreateLocalDevUser(): Promise<User | null> {
+export async function getOrCreateLocalDevUser(): Promise<User | null> {
   if (!localDevUserPromise) {
     localDevUserPromise = (async () => {
       let user = await db.getUserByOpenId(LOCAL_DEV_OPEN_ID);
