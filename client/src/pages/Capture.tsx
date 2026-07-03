@@ -19,8 +19,21 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+// Every choice here is measured against one scenario: someone stops for ten
+// seconds because they just noticed a bird in a puddle. Only the photo and
+// a single tap on water condition sit above the fold — everything else
+// (spot type, a note, a species) is optional and tucked behind one "Add
+// details" toggle so it never competes with the two things worth doing
+// fast. Geolocation prefers a cached, network-based fix over a slow
+// high-accuracy GPS lock, since "near this puddle" is precise enough.
+const GEOLOCATION_OPTIONS: PositionOptions = {
+  enableHighAccuracy: false,
+  timeout: 8000,
+  maximumAge: 5 * 60 * 1000,
+};
+
 export default function Capture() {
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, refresh } = useAuth();
   const [, navigate] = useLocation();
   const search = useSearch();
   const spotIdParam = useMemo(() => new URLSearchParams(search).get("spotId"), [search]);
@@ -35,7 +48,7 @@ export default function Capture() {
   const [waterCondition, setWaterCondition] = useState<string>("full");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [showDetail, setShowDetail] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [species, setSpecies] = useState("");
   const [behaviors, setBehaviors] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
@@ -46,27 +59,36 @@ export default function Capture() {
       navigator.geolocation.getCurrentPosition(
         pos => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
         () => setCoords(null),
+        GEOLOCATION_OPTIONS,
       );
     }
   }, [spotId]);
+
+  // Signing in requires leaving the app (OAuth redirect), which would
+  // otherwise wipe an in-progress photo/note for anyone who opened
+  // Capture before ever creating an account. The Save button below opens
+  // sign-in in a new tab instead, so this tab — and everything typed into
+  // it — survives; refetch auth whenever the user comes back to it so
+  // Save unlocks without a manual reload.
+  useEffect(() => {
+    const onFocus = () => refresh();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [refresh]);
 
   const createSpot = trpc.spots.create.useMutation();
   const createMoment = trpc.moments.create.useMutation();
   const uploadMedia = trpc.moments.uploadMedia.useMutation();
 
   const busy = createSpot.isPending || createMoment.isPending || uploadMedia.isPending;
-
-  if (!authLoading && !isAuthenticated) {
-    return (
-      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 px-6 text-center">
-        <p className="text-muted-foreground">Sign in to log a moment.</p>
-        <Button asChild>
-          <a href={getLoginUrl()}>Sign in</a>
-        </Button>
-      </div>
-    );
-  }
-
+  const locating = !spotId && !coords;
   const canSubmit = spotId ? true : !!coords;
 
   const handleSubmit = async () => {
@@ -113,7 +135,7 @@ export default function Capture() {
   };
 
   return (
-    <div className="min-h-[100dvh] pb-24">
+    <div className="min-h-[100dvh] pb-40">
       <header className="flex items-center gap-3 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3">
         <Button size="icon" variant="ghost" onClick={() => navigate(-1 as unknown as string)}>
           <ArrowLeft className="h-5 w-5" />
@@ -127,7 +149,8 @@ export default function Capture() {
       </header>
 
       <div className="mx-4 space-y-4">
-        {/* Photo — the primary, fastest input */}
+        {/* Photo — the primary, fastest input. Tapping it is the one
+            gesture that matters most, so nothing else sits above it. */}
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
@@ -169,30 +192,8 @@ export default function Capture() {
           }}
         />
 
-        {!spotId && (
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-muted-foreground">What kind of spot is this?</p>
-            <div className="flex flex-wrap gap-1.5">
-              {Object.entries(SPOT_TYPE_LABELS).map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setSpotType(key as SpotType)}
-                  className={cn(
-                    "rounded-full border px-3 py-1 text-xs",
-                    spotType === key ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            {!coords && (
-              <p className="mt-2 text-xs text-muted-foreground">Waiting for location…</p>
-            )}
-          </div>
-        )}
-
+        {/* Water condition — the one other thing worth a single tap: no
+            typing, a sensible default already selected. */}
         <div>
           <p className="mb-1.5 text-xs font-medium text-muted-foreground">Water</p>
           <div className="flex flex-wrap gap-1.5">
@@ -212,52 +213,113 @@ export default function Capture() {
           </div>
         </div>
 
-        <Textarea
-          placeholder="What did this water spot become today? (optional)"
-          value={note}
-          onChange={e => setNote(e.target.value)}
-          rows={3}
-        />
-
+        {/* Everything else — spot type, a note, a species — is real but
+            optional, so it's one toggle away instead of competing with
+            the photo and water tap for a rushed thumb. */}
         <button
           type="button"
-          onClick={() => setShowDetail(v => !v)}
+          onClick={() => setShowDetails(v => !v)}
           className="flex items-center gap-1 text-xs font-medium text-muted-foreground"
         >
-          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showDetail && "rotate-180")} />
-          Add a bird sighting (optional)
+          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showDetails && "rotate-180")} />
+          Add details (optional)
         </button>
 
-        {showDetail && (
-          <div className="space-y-2 rounded-xl border border-border bg-card p-3">
-            <Input
-              placeholder="Species (leave blank if unsure)"
-              value={species}
-              onChange={e => setSpecies(e.target.value)}
+        {showDetails && (
+          <div className="space-y-3 rounded-xl border border-border bg-card p-3">
+            {!spotId && (
+              <div>
+                <p className="mb-1.5 text-xs font-medium text-muted-foreground">What kind of spot is this?</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(SPOT_TYPE_LABELS).map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setSpotType(key as SpotType)}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs",
+                        spotType === key ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <Textarea
+              placeholder="What did this water spot become today? (optional)"
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              rows={3}
             />
-            <div className="flex flex-wrap gap-1.5">
-              {BEHAVIOR_OPTIONS.map(b => (
-                <button
-                  key={b}
-                  type="button"
-                  onClick={() =>
-                    setBehaviors(prev => (prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]))
-                  }
-                  className={cn(
-                    "rounded-full border px-3 py-1 text-xs",
-                    behaviors.includes(b) ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
-                  )}
-                >
-                  {b}
-                </button>
-              ))}
+
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Bird sighting</p>
+              <Input
+                placeholder="Species (leave blank if unsure)"
+                value={species}
+                onChange={e => setSpecies(e.target.value)}
+              />
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {BEHAVIOR_OPTIONS.map(b => (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() =>
+                      setBehaviors(prev => (prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]))
+                    }
+                    className={cn(
+                      "rounded-full border px-3 py-1 text-xs",
+                      behaviors.includes(b) ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                    )}
+                  >
+                    {b}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
+      </div>
 
-        <Button className="w-full" size="lg" disabled={!canSubmit || busy || saved} onClick={handleSubmit}>
-          {busy ? <Spinner className="h-4 w-4" /> : saved ? "Saved" : "Save moment"}
+      {/* Sticky, so Save is one tap away no matter how much of the
+          optional section above is expanded or scrolled past. Not being
+          signed in doesn't block the photo/note above — it only changes
+          what this button does. */}
+      <div className="fixed inset-x-0 bottom-20 z-40 mx-auto max-w-md px-4">
+        <Button
+          className="w-full shadow-lg"
+          size="lg"
+          disabled={busy || saved || authLoading || (isAuthenticated && !canSubmit)}
+          onClick={() => {
+            if (!isAuthenticated) {
+              window.open(getLoginUrl(), "_blank", "noopener,noreferrer");
+              return;
+            }
+            handleSubmit();
+          }}
+        >
+          {saved ? (
+            "Saved"
+          ) : busy || authLoading ? (
+            <Spinner className="h-4 w-4" />
+          ) : !isAuthenticated ? (
+            "Sign in to save"
+          ) : locating ? (
+            <>
+              <Spinner className="h-4 w-4" /> Locating…
+            </>
+          ) : (
+            "Save moment"
+          )}
         </Button>
+        {!isAuthenticated && !authLoading && (
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            Opens in a new tab — this photo stays right here.
+          </p>
+        )}
       </div>
     </div>
   );

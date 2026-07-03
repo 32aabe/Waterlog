@@ -2,6 +2,14 @@
 
 Roadmap from the Ver.3 design proposal, tracked here as work lands.
 
+## Standing principle (2026-07-03)
+
+The capture experience outranks every other feature. The test for any
+change to the Capture screen: does this help or hurt someone who stops for
+ten seconds because they just noticed a bird interacting with water? If a
+feature makes recording slower, simplify or defer it rather than the
+photo/save path.
+
 ## Milestone 1 — Foundation ✅
 
 - [x] New project scaffolded from Ver.2's infrastructure layer (server
@@ -33,6 +41,26 @@ evidence to design against. See `README.md` → "Data model" for exactly how
 the product-language API maps onto those tables today.
 
 ## Milestone 2 — Fast capture loop polish
+
+### Capture-speed pass (2026-07-03)
+
+- [x] Collapsed spot type, note, and species/behaviors into a single
+      "Add details (optional)" toggle. Above the fold now: photo, one row
+      of water-condition chips, nothing else.
+- [x] Save button is sticky (always one tap away, independent of scroll
+      or how much of the optional section is expanded), and now shows why
+      it's briefly disabled ("Locating…") instead of just going gray.
+- [x] Geolocation requests a fast, cached/network fix
+      (`enableHighAccuracy: false`, 5-minute `maximumAge`) instead of a
+      slow high-accuracy GPS lock — "near this puddle" is precise enough.
+- [x] Removed the full-screen sign-in wall that used to block the whole
+      Capture screen — including taking the photo — for anyone not
+      already signed in. The screen now works fully signed out; only
+      tapping Save for real requires an account, and it opens sign-in in
+      a new tab so the in-progress photo/note is never lost. Auth
+      refetches automatically when the user returns to the tab.
+
+### Remaining
 
 - [ ] Voice-note capture (wire existing `voiceTranscription.ts`).
 - [ ] Multi-photo and multi-sighting entries.
