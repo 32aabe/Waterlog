@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { getLoginUrl } from "@/const";
-import { APP_NAME, APP_TAGLINE, SPOT_TYPE_LABELS, LIFECYCLE_LABELS } from "@/const";
+import { APP_NAME, APP_TAGLINE, getSpotTypeLabel, LIFECYCLE_LABELS } from "@/const";
 import { Plus, Waves } from "lucide-react";
-import type { WaterSpot } from "../../../drizzle/schema";
+import type { SpotSummary } from "../../../server/db";
 
 const STATE_COLOR: Record<string, string> = {
   alive: "#3E8B85",
@@ -22,11 +22,11 @@ export default function MapHome() {
   const { isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
   const { data: spots, isLoading } = trpc.spots.list.useQuery();
-  const [selected, setSelected] = useState<WaterSpot | null>(null);
+  const [selected, setSelected] = useState<SpotSummary | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
 
   const plotSpots = useCallback(
-    (map: google.maps.Map, spotList: WaterSpot[]) => {
+    (map: google.maps.Map, spotList: SpotSummary[]) => {
       spotList.forEach(spot => {
         if (!window.google?.maps?.marker) return;
         const pin = document.createElement("div");
@@ -41,7 +41,7 @@ export default function MapHome() {
           map,
           position: { lat: Number(spot.latitude), lng: Number(spot.longitude) },
           content: pin,
-          title: spot.name ?? SPOT_TYPE_LABELS[spot.spotType],
+          title: spot.name ?? getSpotTypeLabel(spot.spotType),
         });
         marker.addListener("click", () => setSelected(spot));
       });
@@ -101,7 +101,7 @@ export default function MapHome() {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="font-medium text-foreground">
-                  {selected.name || SPOT_TYPE_LABELS[selected.spotType]}
+                  {selected.name || getSpotTypeLabel(selected.spotType)}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {selected.placeName || `${Number(selected.latitude).toFixed(4)}, ${Number(selected.longitude).toFixed(4)}`}

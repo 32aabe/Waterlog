@@ -1,13 +1,6 @@
 import { eq, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import {
-  InsertUser,
-  users,
-  waterSpots,
-  moments,
-  sightings,
-  type WaterSpot,
-} from "../drizzle/schema";
+import { InsertUser, users, locations, observations, type Location, type Observation } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -25,7 +18,7 @@ export async function getDb() {
   return _db;
 }
 
-// Helper function to safely parse JSON array columns (behaviors, photoUrls)
+// Helper function to safely parse JSON array columns (behaviors)
 function parseJsonArray(value: unknown): string[] {
   if (!value) return [];
   if (Array.isArray(value)) return value as string[];
@@ -109,149 +102,178 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+// ---------------------------------------------------------------------------
+// Water Spots & Moments — a product-language adapter over Ver.2's original
+// `locations` / `observations` tables.
+//
+// Per product decision (2026-07-03): don't introduce WaterSpot/Moment/
+// Sighting as first-class tables yet. Validate the new experience on real
+// usage first; a schema redesign can follow once there's evidence for it.
+// A "spot" is a `locations` row. A "moment" (with exactly one "sighting")
+// is an `observations` row. Lifecycle state is computed at read time from
+// recent observations rather than stored.
+// ---------------------------------------------------------------------------
+
+export const UNIDENTIFIED_SPECIES = "Unidentified bird";
+
+export type LifecycleState = "alive" | "drying" | "dry" | "reawakened";
+
+export type SpotSummary = {
+  id: number;
+  creatorId: number;
+  name: string | null;
+  latitude: string;
+  longitude: string;
+  placeName: string | null;
+  spotType: string;
+  lifecycleState: LifecycleState;
+  firstSeenAt: Date;
+  lastActivityAt: Date;
+};
+
+export type MomentSighting = {
+  id: number;
+  species: string | null;
+  count: number | null;
+  behaviors: string[];
+};
+
+export type MomentSummary = {
+  id: number;
+  spotId: number | null;
+  userId: number;
+  capturedAt: Date;
+  note: string | null;
+  photoUrls: string[];
+  waterCondition: string | null;
+  sightings: MomentSighting[];
+};
+
+type Db = NonNullable<Awaited<ReturnType<typeof getDb>>>;
+
 /**
- * Create a new Water Spot. Every spot starts "alive" — it was just seen.
+ * A spot's lifecycle is derived, not stored: look at its most recent
+ * observation(s) rather than a persisted state column. A spot reported
+ * "dry" is dry; one whose last report was "dry" and just got a fresh,
+ * non-dry report is "reawakened"; one with no report in over a week is
+ * "drying"; otherwise it's "alive".
  */
+async function deriveLifecycle(
+  db: Db,
+  locationId: number,
+  locationCreatedAt: Date,
+): Promise<{ state: LifecycleState; lastActivityAt: Date }> {
+  const recent = await db
+    .select()
+    .from(observations)
+    .where(eq(observations.locationId, locationId))
+    .orderBy(desc(observations.createdAt))
+    .limit(2);
+
+  if (recent.length === 0) {
+    return { state: "alive", lastActivityAt: locationCreatedAt };
+  }
+
+  const [latest, prior] = recent;
+  const daysSinceLatest = (Date.now() - new Date(latest.createdAt).getTime()) / 86_400_000;
+
+  if (latest.waterDepth === "dry") {
+    return { state: "dry", lastActivityAt: latest.createdAt };
+  }
+  if (prior?.waterDepth === "dry" && daysSinceLatest < 3) {
+    return { state: "reawakened", lastActivityAt: latest.createdAt };
+  }
+  if (daysSinceLatest > 7) {
+    return { state: "drying", lastActivityAt: latest.createdAt };
+  }
+  return { state: "alive", lastActivityAt: latest.createdAt };
+}
+
+function toSpotSummary(
+  loc: Location,
+  lifecycle: { state: LifecycleState; lastActivityAt: Date },
+): SpotSummary {
+  return {
+    id: loc.id,
+    creatorId: loc.userId,
+    name: loc.name,
+    latitude: loc.latitude,
+    longitude: loc.longitude,
+    placeName: loc.placeName,
+    spotType: loc.waterResourceType ?? "other",
+    lifecycleState: lifecycle.state,
+    firstSeenAt: loc.createdAt,
+    lastActivityAt: lifecycle.lastActivityAt,
+  };
+}
+
+function toMomentSummary(obs: Observation): MomentSummary {
+  return {
+    id: obs.id,
+    spotId: obs.locationId,
+    userId: obs.userId,
+    capturedAt: obs.createdAt,
+    note: obs.notes,
+    photoUrls: obs.photoUrl ? [obs.photoUrl] : [],
+    waterCondition: obs.waterDepth,
+    sightings: [
+      {
+        id: obs.id,
+        species: obs.species === UNIDENTIFIED_SPECIES ? null : obs.species,
+        count: obs.count,
+        behaviors: parseJsonArray(obs.primaryBehaviors),
+      },
+    ],
+  };
+}
+
 export async function createSpot(data: {
   creatorId: number;
   name?: string;
   latitude: number;
   longitude: number;
   placeName?: string;
-  spotType?: WaterSpot["spotType"];
-}) {
+  spotType?: string;
+}): Promise<SpotSummary | null> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const now = new Date();
-  const result = await db.insert(waterSpots).values({
-    creatorId: data.creatorId,
+  const result = await db.insert(locations).values({
+    userId: data.creatorId,
     name: data.name,
     latitude: data.latitude.toString() as any,
     longitude: data.longitude.toString() as any,
     placeName: data.placeName,
-    spotType: data.spotType ?? "other",
-    lifecycleState: "alive",
-    firstSeenAt: now,
-    lastActivityAt: now,
+    waterResourceType: data.spotType ?? "other",
   });
 
   return getSpotById(Number((result as any).insertId));
 }
 
-export async function listSpots() {
+export async function listSpots(): Promise<SpotSummary[]> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  return db.select().from(waterSpots).orderBy(desc(waterSpots.lastActivityAt));
+  const rows = await db.select().from(locations).orderBy(desc(locations.createdAt));
+  return Promise.all(
+    rows.map(async loc => toSpotSummary(loc, await deriveLifecycle(db, loc.id, loc.createdAt))),
+  );
 }
 
-export async function getSpotById(id: number) {
+export async function getSpotById(id: number): Promise<SpotSummary | null> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const result = await db.select().from(waterSpots).where(eq(waterSpots.id, id)).limit(1);
-  return result.length > 0 ? result[0] : null;
-}
+  const rows = await db.select().from(locations).where(eq(locations.id, id)).limit(1);
+  if (rows.length === 0) return null;
 
-/**
- * Derive a spot's next lifecycle state from the water condition reported in
- * a new moment. A spot coming back from "dry" is a "reawakened" moment —
- * worth celebrating in the UI. Time-based decay toward "drying"/"dry" for
- * spots with no recent activity is a later milestone (needs a scheduled
- * job, not just a write-time rule).
- */
-function nextLifecycleState(
-  previous: WaterSpot["lifecycleState"],
-  waterCondition: string | undefined,
-): WaterSpot["lifecycleState"] {
-  if (waterCondition === "dry") return "dry";
-  if (previous === "dry") return "reawakened";
-  return "alive";
-}
-
-/**
- * Log a Moment at a spot, with any bird Sightings observed during it, in a
- * single call — this is the write path behind the under-10-second capture
- * flow. Also updates the parent spot's lifecycle state and activity time.
- */
-export async function createMoment(data: {
-  spotId: number;
-  userId: number;
-  note?: string;
-  photoUrls?: string[];
-  voiceNoteUrl?: string;
-  transcript?: string;
-  waterCondition?: string;
-  weather?: string;
-  temperature?: number;
-  sightings?: Array<{
-    species?: string;
-    count?: number;
-    behaviors?: string[];
-  }>;
-}) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const spot = await getSpotById(data.spotId);
-  if (!spot) throw new Error("Water spot not found");
-
-  const momentResult = await db.insert(moments).values({
-    spotId: data.spotId,
-    userId: data.userId,
-    note: data.note,
-    photoUrls: data.photoUrls ? JSON.stringify(data.photoUrls) : null,
-    voiceNoteUrl: data.voiceNoteUrl,
-    transcript: data.transcript,
-    waterCondition: data.waterCondition,
-    weather: data.weather,
-    temperature: data.temperature !== undefined ? (data.temperature.toString() as any) : null,
-  });
-
-  const momentId = Number((momentResult as any).insertId);
-
-  if (data.sightings && data.sightings.length > 0) {
-    await db.insert(sightings).values(
-      data.sightings.map(s => ({
-        momentId,
-        species: s.species,
-        count: s.count ?? 1,
-        behaviors: s.behaviors ? JSON.stringify(s.behaviors) : null,
-      })),
-    );
-  }
-
-  await db
-    .update(waterSpots)
-    .set({
-      lastActivityAt: new Date(),
-      lifecycleState: nextLifecycleState(spot.lifecycleState, data.waterCondition),
-    })
-    .where(eq(waterSpots.id, data.spotId));
-
-  return getMomentById(momentId);
-}
-
-export async function getMomentById(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const momentResult = await db.select().from(moments).where(eq(moments.id, id)).limit(1);
-  if (momentResult.length === 0) return null;
-
-  const sightingRows = await db.select().from(sightings).where(eq(sightings.momentId, id));
-
-  return {
-    ...momentResult[0],
-    photoUrls: parseJsonArray(momentResult[0].photoUrls),
-    sightings: sightingRows.map(s => ({ ...s, behaviors: parseJsonArray(s.behaviors) })),
-  };
+  const lifecycle = await deriveLifecycle(db, id, rows[0].createdAt);
+  return toSpotSummary(rows[0], lifecycle);
 }
 
 /**
  * A spot's story: the spot itself plus every moment logged there, newest
- * first, each with its sightings attached.
+ * first.
  */
 export async function getSpotDetail(spotId: number) {
   const db = await getDb();
@@ -260,65 +282,107 @@ export async function getSpotDetail(spotId: number) {
   const spot = await getSpotById(spotId);
   if (!spot) return null;
 
-  const momentRows = await db
+  const rows = await db
     .select()
-    .from(moments)
-    .where(eq(moments.spotId, spotId))
-    .orderBy(desc(moments.capturedAt));
+    .from(observations)
+    .where(eq(observations.locationId, spotId))
+    .orderBy(desc(observations.createdAt));
 
-  const momentsWithSightings = await Promise.all(
-    momentRows.map(async m => {
-      const sightingRows = await db.select().from(sightings).where(eq(sightings.momentId, m.id));
-      return {
-        ...m,
-        photoUrls: parseJsonArray(m.photoUrls),
-        sightings: sightingRows.map(s => ({ ...s, behaviors: parseJsonArray(s.behaviors) })),
-      };
-    }),
-  );
-
-  return { spot, moments: momentsWithSightings };
+  return { spot, moments: rows.map(toMomentSummary) };
 }
 
 /**
- * A user's Journal: every moment they've logged, across every spot, newest
- * first — the time-first read of the same data the map reads place-first.
+ * Log a Moment at a spot, with its (single) bird Sighting if any — the
+ * write path behind the under-10-second capture flow. `spotId`/`userId`
+ * become `locationId`/`userId` on the observation; an omitted species
+ * defaults to "Unidentified bird" so a birdless-but-real entry doesn't
+ * need a nullable column.
+ */
+export async function createMoment(data: {
+  spotId: number;
+  userId: number;
+  note?: string;
+  photoUrls?: string[];
+  waterCondition?: string;
+  sightings?: Array<{
+    species?: string;
+    count?: number;
+    behaviors?: string[];
+  }>;
+}): Promise<MomentSummary | null> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const spotRows = await db.select().from(locations).where(eq(locations.id, data.spotId)).limit(1);
+  if (spotRows.length === 0) throw new Error("Water spot not found");
+  const spot = spotRows[0];
+
+  const sighting = data.sightings?.[0];
+  const now = new Date();
+
+  const result = await db.insert(observations).values({
+    userId: data.userId,
+    locationId: data.spotId,
+    date: now.toISOString().slice(0, 10),
+    time: now.toISOString().slice(11, 19),
+    latitude: spot.latitude,
+    longitude: spot.longitude,
+    placeName: spot.placeName,
+    species: sighting?.species || UNIDENTIFIED_SPECIES,
+    count: sighting?.count ?? 1,
+    primaryBehaviors: sighting?.behaviors ? JSON.stringify(sighting.behaviors) : null,
+    waterResourceType: spot.waterResourceType,
+    waterDepth: data.waterCondition,
+    notes: data.note,
+    photoUrl: data.photoUrls?.[0],
+  });
+
+  return getMomentById(Number((result as any).insertId));
+}
+
+export async function getMomentById(id: number): Promise<MomentSummary | null> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const rows = await db.select().from(observations).where(eq(observations.id, id)).limit(1);
+  return rows.length > 0 ? toMomentSummary(rows[0]) : null;
+}
+
+/**
+ * A user's Journal: every moment they've logged, across every spot,
+ * newest first — the time-first read of the same data the map reads
+ * place-first.
  */
 export async function listUserJournal(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const momentRows = await db
+  const rows = await db
     .select()
-    .from(moments)
-    .where(eq(moments.userId, userId))
-    .orderBy(desc(moments.capturedAt));
+    .from(observations)
+    .where(eq(observations.userId, userId))
+    .orderBy(desc(observations.createdAt));
 
   return Promise.all(
-    momentRows.map(async m => {
-      const [spot, sightingRows] = await Promise.all([
-        getSpotById(m.spotId),
-        db.select().from(sightings).where(eq(sightings.momentId, m.id)),
-      ]);
-      return {
-        ...m,
-        photoUrls: parseJsonArray(m.photoUrls),
-        sightings: sightingRows.map(s => ({ ...s, behaviors: parseJsonArray(s.behaviors) })),
-        spot,
-      };
-    }),
+    rows.map(async obs => ({
+      ...toMomentSummary(obs),
+      spot: obs.locationId ? await getSpotById(obs.locationId) : null,
+    })),
   );
 }
 
 export async function getUserStats(userId: number) {
-  const journal = await listUserJournal(userId);
-  const spotIds = new Set(journal.map(m => m.spotId));
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const rows = await db.select().from(observations).where(eq(observations.userId, userId));
+  const spotIds = new Set(rows.map(r => r.locationId).filter((id): id is number => id !== null));
   const species = new Set(
-    journal.flatMap(m => m.sightings.map(s => s.species).filter((s): s is string => Boolean(s))),
+    rows.map(r => r.species).filter(s => s && s !== UNIDENTIFIED_SPECIES),
   );
 
   return {
-    totalMoments: journal.length,
+    totalMoments: rows.length,
     spotsVisited: spotIds.size,
     uniqueSpecies: species.size,
   };

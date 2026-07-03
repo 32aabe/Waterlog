@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
-import { SPOT_TYPE_LABELS, LIFECYCLE_LABELS } from "@/const";
+import { getSpotTypeLabel, LIFECYCLE_LABELS } from "@/const";
 import { ArrowLeft, Plus, Droplets } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -42,7 +42,7 @@ export default function SpotStory() {
         </Button>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-semibold text-foreground">
-            {spot.name || SPOT_TYPE_LABELS[spot.spotType]}
+            {spot.name || getSpotTypeLabel(spot.spotType)}
           </h1>
           <p className="truncate text-xs text-muted-foreground">
             {spot.placeName || `${Number(spot.latitude).toFixed(4)}, ${Number(spot.longitude).toFixed(4)}`}
@@ -51,7 +51,7 @@ export default function SpotStory() {
       </header>
 
       <div className="mx-4 flex items-center gap-2">
-        <Badge variant="secondary">{SPOT_TYPE_LABELS[spot.spotType]}</Badge>
+        <Badge variant="secondary">{getSpotTypeLabel(spot.spotType)}</Badge>
         <Badge>{LIFECYCLE_LABELS[spot.lifecycleState]}</Badge>
         <span className="text-xs text-muted-foreground">
           last activity {formatDistanceToNow(new Date(spot.lastActivityAt), { addSuffix: true })}

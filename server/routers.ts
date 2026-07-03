@@ -70,11 +70,7 @@ export const appRouter = router({
           spotId: z.number(),
           note: z.string().optional(),
           photoUrls: z.array(z.string()).optional(),
-          voiceNoteUrl: z.string().optional(),
-          transcript: z.string().optional(),
           waterCondition: z.string().optional(),
-          weather: z.string().optional(),
-          temperature: z.number().optional(),
           sightings: z.array(sightingInputSchema).optional(),
         }),
       )

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { SPOT_TYPE_LABELS, LIFECYCLE_LABELS } from "@/const";
+import { getSpotTypeLabel, LIFECYCLE_LABELS } from "@/const";
 import { Search, MapPinned } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -22,7 +22,7 @@ export default function Spots() {
     return spots.filter(spot => {
       if (filter !== "all" && spot.lifecycleState !== filter) return false;
       if (!query) return true;
-      const haystack = `${spot.name ?? ""} ${spot.placeName ?? ""} ${SPOT_TYPE_LABELS[spot.spotType]}`.toLowerCase();
+      const haystack = `${spot.name ?? ""} ${spot.placeName ?? ""} ${getSpotTypeLabel(spot.spotType)}`.toLowerCase();
       return haystack.includes(query.toLowerCase());
     });
   }, [spots, query, filter]);
@@ -78,10 +78,10 @@ export default function Spots() {
           >
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-foreground">
-                {spot.name || SPOT_TYPE_LABELS[spot.spotType]}
+                {spot.name || getSpotTypeLabel(spot.spotType)}
               </p>
               <p className="truncate text-xs text-muted-foreground">
-                {SPOT_TYPE_LABELS[spot.spotType]} · active {formatDistanceToNow(new Date(spot.lastActivityAt), { addSuffix: true })}
+                {getSpotTypeLabel(spot.spotType)} · active {formatDistanceToNow(new Date(spot.lastActivityAt), { addSuffix: true })}
               </p>
             </div>
             <Badge variant="secondary" className="flex-shrink-0">

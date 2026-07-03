@@ -27,129 +27,142 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
 /**
- * Water Spots are the primary object in Waterlog: a puddle, pond, fountain,
- * or any place where birds interact with water. A spot persists across many
- * visits from many users and carries its own lifecycle state, independent
- * of any single sighting.
+ * Locations table for storing observation sites.
+ *
+ * Kept identical to Ver.2 ("Brooktrack") by design: this Ver.3 milestone
+ * deliberately does not introduce a first-class Water Spot table yet. A
+ * "spot" is represented in product code as a Location row plus a
+ * lifecycle state derived at read time from its Observations (see
+ * server/db.ts) rather than a stored column. This lets the product
+ * validate the new experience with real users before committing to a new
+ * data model. Each location can have multiple observations from different
+ * users.
  */
-export const waterSpots = mysqlTable("waterSpots", {
+export const locations = mysqlTable("locations", {
   id: int("id").autoincrement().primaryKey(),
-  /** User who first logged this spot */
-  creatorId: int("creatorId").notNull(),
-  /** User-given name, e.g. "Puddle by the bus stop" */
+  /** User who created this location entry */
+  userId: int("userId").notNull(),
+  /** User-provided location name (optional) */
   name: text("name"),
+  /** Latitude coordinate */
   latitude: decimal("latitude", { precision: 10, scale: 8 }).notNull(),
+  /** Longitude coordinate */
   longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),
   /** Reverse geocoded place name (if available) */
   placeName: text("placeName"),
-  /** What kind of water spot this is */
-  spotType: mysqlEnum("spotType", [
-    "puddle",
-    "temporary_pool",
-    "pond",
-    "fountain",
-    "drainage",
-    "container",
-    "wetland",
-    "other",
-  ]).default("other").notNull(),
-  /**
-   * Where this spot is in its life story. Set on write today (see
-   * server/db.ts createMoment); time-based decay toward "drying"/"dry" is a
-   * later milestone.
-   */
-  lifecycleState: mysqlEnum("lifecycleState", ["alive", "drying", "dry", "reawakened"])
-    .default("alive")
-    .notNull(),
-  firstSeenAt: timestamp("firstSeenAt").defaultNow().notNull(),
-  lastActivityAt: timestamp("lastActivityAt").defaultNow().notNull(),
+  /** Water resource type. Doubles as the product's "spot type" (puddle,
+   *  pond, fountain, ...) — validated against an enum at the app layer in
+   *  server/routers.ts, not at the schema layer. */
+  waterResourceType: varchar("waterResourceType", { length: 64 }),
+  /** Freshwater / saltwater / brackish */
+  waterSalinity: varchar("waterSalinity", { length: 32 }),
+  /** Natural / artificial / semi-natural */
+  waterOrigin: varchar("waterOrigin", { length: 32 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
-export type WaterSpot = typeof waterSpots.$inferSelect;
-export type InsertWaterSpot = typeof waterSpots.$inferInsert;
+export type Location = typeof locations.$inferSelect;
+export type InsertLocation = typeof locations.$inferInsert;
 
 /**
- * A Moment is a single field entry at a Water Spot: "what happened here
- * today?" Designed to be completable in under 10 seconds with just a photo
- * or voice note and a spot — everything else is optional enrichment.
+ * Observations table for storing bird observation records.
+ *
+ * Kept identical to Ver.2 ("Brooktrack"). In product code this row is a
+ * "Moment" (a field entry at a spot) carrying exactly one "Sighting" —
+ * see server/db.ts for the adapter that presents it that way to the
+ * client without a schema change. Each observation is linked to a user
+ * and a location.
  */
-export const moments = mysqlTable("moments", {
+export const observations = mysqlTable("observations", {
   id: int("id").autoincrement().primaryKey(),
-  spotId: int("spotId").notNull(),
-  /** User who logged this moment */
+  /** User who made this observation */
   userId: int("userId").notNull(),
-  capturedAt: timestamp("capturedAt").defaultNow().notNull(),
-  /** Free-text field note, or a cleaned-up voice transcript */
-  note: text("note"),
-  /** Photo URLs (S3), stored as a JSON array */
-  photoUrls: json("photoUrls"),
-  /** Raw voice note audio URL, if captured by voice */
-  voiceNoteUrl: text("voiceNoteUrl"),
-  /** Transcription of the voice note */
-  transcript: text("transcript"),
-  /** How much water was there: full / receding / puddle_only / dry */
-  waterCondition: varchar("waterCondition", { length: 32 }),
-  weather: varchar("weather", { length: 64 }),
+  /** Location where observation was made */
+  locationId: int("locationId"),
+  /** Observation date */
+  date: varchar("date", { length: 10 }).notNull(),
+  /** Observation time */
+  time: varchar("time", { length: 8 }),
+  /** GPS latitude */
+  latitude: decimal("latitude", { precision: 10, scale: 8 }).notNull(),
+  /** GPS longitude */
+  longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),
+  /** Location name provided by user */
+  locationName: text("locationName"),
+  /** Reverse geocoded place name */
+  placeName: text("placeName"),
+  /** Bird species. Defaults to "Unidentified bird" at write time (see
+   *  server/db.ts) rather than being made nullable, so a moment without a
+   *  confirmed species is still a fast, valid entry without a schema change. */
+  species: text("species").notNull(),
+  /** Count of birds observed */
+  count: int("count").default(1),
+  /** Whether count is estimated */
+  isEstimatedCount: int("isEstimatedCount").default(0),
+  /** Primary behavior - stored as JSON array */
+  primaryBehaviors: json("primaryBehaviors"),
+  /** Secondary behaviors - stored as JSON array */
+  secondaryBehaviors: json("secondaryBehaviors"),
+  /** Distance from water */
+  distanceFromWater: varchar("distanceFromWater", { length: 64 }),
+  /** Water resource type */
+  waterResourceType: varchar("waterResourceType", { length: 64 }),
+  /** Freshwater / saltwater / brackish */
+  waterSalinity: varchar("waterSalinity", { length: 32 }),
+  /** Natural / artificial / semi-natural */
+  waterOrigin: varchar("waterOrigin", { length: 32 }),
+  /** Flowing / still */
+  waterFlow: varchar("waterFlow", { length: 32 }),
+  /** Water depth category. Doubles as the product's quick-capture "water
+   *  condition" (full / receding / puddle_only / dry) — see server/db.ts. */
+  waterDepth: varchar("waterDepth", { length: 32 }),
+  /** Ice coverage */
+  iceCoverage: varchar("iceCoverage", { length: 32 }),
+  /** Human disturbance level */
+  humanDisturbance: varchar("humanDisturbance", { length: 32 }),
+  /** Temperature */
   temperature: decimal("temperature", { precision: 5, scale: 1 }),
+  /** Weather conditions */
+  weather: varchar("weather", { length: 64 }),
+  /** Wind conditions */
+  wind: varchar("wind", { length: 64 }),
+  /** Precipitation */
+  precipitation: varchar("precipitation", { length: 64 }),
+  /** Field notes */
+  notes: text("notes"),
+  /** Photo URL if available */
+  photoUrl: text("photoUrl"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
-export type Moment = typeof moments.$inferSelect;
-export type InsertMoment = typeof moments.$inferInsert;
-
-/**
- * A Sighting is a bird observed during a Moment. It is a child record of
- * the moment, not the primary object — species is optional so "a bird I
- * couldn't identify visited" is still a complete, valid entry.
- */
-export const sightings = mysqlTable("sightings", {
-  id: int("id").autoincrement().primaryKey(),
-  momentId: int("momentId").notNull(),
-  /** Optional — unidentified sightings are a valid fast-path entry */
-  species: text("species"),
-  count: int("count").default(1),
-  /** e.g. drinking, bathing, foraging, wading — stored as a JSON array */
-  behaviors: json("behaviors"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
-
-export type Sighting = typeof sightings.$inferSelect;
-export type InsertSighting = typeof sightings.$inferInsert;
+export type Observation = typeof observations.$inferSelect;
+export type InsertObservation = typeof observations.$inferInsert;
 
 /**
  * Relations
  */
 export const usersRelations = relations(users, ({ many }) => ({
-  waterSpots: many(waterSpots),
-  moments: many(moments),
+  observations: many(observations),
+  locations: many(locations),
 }));
 
-export const waterSpotsRelations = relations(waterSpots, ({ one, many }) => ({
-  creator: one(users, {
-    fields: [waterSpots.creatorId],
-    references: [users.id],
-  }),
-  moments: many(moments),
-}));
-
-export const momentsRelations = relations(moments, ({ one, many }) => ({
-  spot: one(waterSpots, {
-    fields: [moments.spotId],
-    references: [waterSpots.id],
-  }),
+export const observationsRelations = relations(observations, ({ one }) => ({
   user: one(users, {
-    fields: [moments.userId],
+    fields: [observations.userId],
     references: [users.id],
   }),
-  sightings: many(sightings),
+  location: one(locations, {
+    fields: [observations.locationId],
+    references: [locations.id],
+  }),
 }));
 
-export const sightingsRelations = relations(sightings, ({ one }) => ({
-  moment: one(moments, {
-    fields: [sightings.momentId],
-    references: [moments.id],
+export const locationsRelations = relations(locations, ({ one, many }) => ({
+  user: one(users, {
+    fields: [locations.userId],
+    references: [users.id],
   }),
+  observations: many(observations),
 }));

@@ -26,6 +26,12 @@ export const SPOT_TYPE_LABELS: Record<SpotType, string> = {
   other: "Water spot",
 };
 
+// spotType comes from the free-text `waterResourceType` column (see
+// server/db.ts) rather than an enum, so it may not match a known label.
+export function getSpotTypeLabel(spotType: string): string {
+  return SPOT_TYPE_LABELS[spotType as SpotType] ?? spotType;
+}
+
 export const LIFECYCLE_STATES = ["alive", "drying", "dry", "reawakened"] as const;
 export type LifecycleState = (typeof LIFECYCLE_STATES)[number];
 

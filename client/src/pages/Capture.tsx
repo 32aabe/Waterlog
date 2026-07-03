@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { getLoginUrl, SPOT_TYPE_LABELS, WATER_CONDITIONS, BEHAVIOR_OPTIONS, type SpotType } from "@/const";
+import { getLoginUrl, SPOT_TYPE_LABELS, getSpotTypeLabel, WATER_CONDITIONS, BEHAVIOR_OPTIONS, type SpotType } from "@/const";
 import { ArrowLeft, Camera, X, ChevronDown } from "lucide-react";
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -121,7 +121,7 @@ export default function Capture() {
         <div>
           <h1 className="text-lg font-semibold text-foreground">What happened here?</h1>
           <p className="text-xs text-muted-foreground">
-            {existingSpot ? existingSpot.spot.name || SPOT_TYPE_LABELS[existingSpot.spot.spotType] : "A photo is enough to start."}
+            {existingSpot ? existingSpot.spot.name || getSpotTypeLabel(existingSpot.spot.spotType) : "A photo is enough to start."}
           </p>
         </div>
       </header>

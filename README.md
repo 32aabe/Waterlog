@@ -11,8 +11,8 @@ from.
 
 Ver.1 and Ver.2 are untouched. This is a separate project, built by copying
 Ver.2's infrastructure layer (auth, tRPC/Drizzle pipeline, LLM/image/voice
-services, Google Maps, S3 storage) and replacing its product layer (schema,
-routers, pages, navigation) from first principles.
+services, Google Maps, S3 storage) and replacing its product layer (routers,
+pages, navigation) from first principles.
 
 ## Stack
 
@@ -22,12 +22,24 @@ stack, reused as-is.
 
 ## Data model
 
-- **`waterSpots`** — the persistent place: type (puddle/pond/fountain/…),
-  lifecycle state (alive/drying/dry/reawakened), location.
-- **`moments`** — a field entry at a spot: photo/voice/note, water
-  condition, captured in under 10 seconds when possible.
-- **`sightings`** — a bird observed during a moment; species is optional,
-  a child record of the moment, not the primary object.
+**Product decision (2026-07-03): the database schema is still Ver.2's
+original `users` / `locations` / `observations` tables, unchanged.**
+Water Spot / Moment / Sighting are a product-language API layer over those
+tables (see `server/db.ts`), not new database tables — deliberately, so the
+new experience can be validated with real users before committing to a
+schema redesign. Concretely:
+
+- A **Water Spot** is a `locations` row. Its `waterResourceType` column
+  doubles as the spot type (puddle/pond/fountain/…). Lifecycle state
+  (alive/drying/dry/reawakened) is **computed at read time** from recent
+  observations, not stored.
+- A **Moment** (with exactly one **Sighting**) is an `observations` row.
+  `notes` → note, `photoUrl` → photoUrls (single-element), `waterDepth` →
+  the quick-capture water condition, `species`/`count`/`primaryBehaviors` →
+  the sighting. A moment without a confirmed bird defaults `species` to
+  `"Unidentified bird"` rather than requiring a schema change.
+
+Revisit this once there's real usage data — see `MILESTONES.md`.
 
 ## Getting started
 
