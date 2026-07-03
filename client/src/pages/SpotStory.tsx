@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
-import { getSpotTypeLabel, LIFECYCLE_LABELS } from "@/const";
+import { getSpotTypeLabel, LIFECYCLE_LABELS, formatSighting } from "@/const";
 import { ArrowLeft, Plus, Droplets } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -94,8 +94,8 @@ export default function SpotStory() {
             {moment.sightings.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {moment.sightings.map(s => (
-                  <Badge key={s.id} variant="outline">
-                    {s.species || "Unidentified bird"}
+                  <Badge key={s.id} variant={s.behaviors.length > 0 ? "default" : "outline"}>
+                    {formatSighting(s.species, s.behaviors)}
                     {s.count && s.count > 1 ? ` ×${s.count}` : ""}
                   </Badge>
                 ))}

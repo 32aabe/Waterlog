@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { BookOpen, Plus } from "lucide-react";
+import { formatSighting } from "@/const";
 
 export default function Journal() {
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -83,8 +84,8 @@ export default function Journal() {
             {moment.sightings.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {moment.sightings.map(s => (
-                  <Badge key={s.id} variant="outline">
-                    {s.species || "Unidentified bird"}
+                  <Badge key={s.id} variant={s.behaviors.length > 0 ? "default" : "outline"}>
+                    {formatSighting(s.species, s.behaviors)}
                   </Badge>
                 ))}
               </div>

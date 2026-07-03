@@ -33,13 +33,28 @@ schema redesign. Concretely:
   doubles as the spot type (puddle/pond/fountain/…). Lifecycle state
   (alive/drying/dry/reawakened) is **computed at read time** from recent
   observations, not stored.
-- A **Moment** (with exactly one **Sighting**) is an `observations` row.
+- A **Moment** (with at most one **Sighting**) is an `observations` row.
   `notes` → note, `photoUrl` → photoUrls (single-element), `waterDepth` →
-  the quick-capture water condition, `species`/`count`/`primaryBehaviors` →
-  the sighting. A moment without a confirmed bird defaults `species` to
-  `"Unidentified bird"` rather than requiring a schema change.
+  the quick-capture water condition, `primaryBehaviors`/`species`/`count` →
+  the sighting — behavior leads, species is optional detail about it (see
+  "Product principle" below). `species` holds one of two sentinels rather
+  than requiring a nullable column: `"Unidentified bird"` (a bird was
+  there, un-typed) or an internal `NO_SIGHTING` value (no bird at all —
+  a plain water-spot check, which renders zero sightings, not a fake one).
 
 Revisit this once there's real usage data — see `MILESTONES.md`.
+
+## Product principle: interaction over identification
+
+The primary observation is not "a bird" — it's what the bird was doing
+with water. Species matters, but it's secondary detail *about* the
+interaction, not the headline. In the capture flow this means behavior
+chips (Drinking/Bathing/Foraging/…) sit above the fold as the main action,
+while species is a demoted, optional text field. Everywhere a moment is
+displayed (Spot Story, Journal), behavior renders first and gets the
+primary badge color; species trails. See `MILESTONES.md` for the pass that
+implemented this and why it required a small server-side fix (see "Data
+model" above).
 
 ## Getting started
 

@@ -116,13 +116,19 @@ export default function Capture() {
         photoUrls = [url];
       }
 
+      // A sighting is worth recording as soon as there's a behavior *or*
+      // a species — behavior alone (no species typed) is the expected
+      // common case, not a fallback, per the water-interaction-first
+      // capture design above.
+      const hasSighting = species.trim() || behaviors.length > 0;
+
       await createMoment.mutateAsync({
         spotId: targetSpotId,
         note: note || undefined,
         photoUrls,
         waterCondition,
-        sightings: species
-          ? [{ species, behaviors: behaviors.length > 0 ? behaviors : undefined }]
+        sightings: hasSighting
+          ? [{ species: species.trim() || undefined, behaviors: behaviors.length > 0 ? behaviors : undefined }]
           : undefined,
       });
 
@@ -192,10 +198,39 @@ export default function Capture() {
           }}
         />
 
-        {/* Water condition — the one other thing worth a single tap: no
-            typing, a sensible default already selected. */}
+        {/* Water interaction — the actual subject of this app: not "what
+            bird," but "what was it doing with the water." One tap, no
+            typing, so it reads as the main action of the flow rather than
+            a detail hanging off a species field. No default is
+            pre-selected — a spot check with no bird is still a complete,
+            valid entry. */}
         <div>
-          <p className="mb-1.5 text-xs font-medium text-muted-foreground">Water</p>
+          <p className="mb-1.5 text-sm font-semibold text-foreground">Water interaction</p>
+          <p className="mb-1.5 text-xs text-muted-foreground">What was the bird doing? (optional)</p>
+          <div className="flex flex-wrap gap-1.5">
+            {BEHAVIOR_OPTIONS.map(b => (
+              <button
+                key={b}
+                type="button"
+                onClick={() =>
+                  setBehaviors(prev => (prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]))
+                }
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-xs font-medium",
+                  behaviors.includes(b) ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                )}
+              >
+                {b}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Water level — the spot's own state, distinct from what the
+            bird was doing above. Still a single tap, but secondary to
+            the interaction itself. */}
+        <div>
+          <p className="mb-1.5 text-xs font-medium text-muted-foreground">Water level</p>
           <div className="flex flex-wrap gap-1.5">
             {WATER_CONDITIONS.map(c => (
               <button
@@ -213,9 +248,9 @@ export default function Capture() {
           </div>
         </div>
 
-        {/* Everything else — spot type, a note, a species — is real but
-            optional, so it's one toggle away instead of competing with
-            the photo and water tap for a rushed thumb. */}
+        {/* Everything else — spot type, a note, and species — is real but
+            secondary. Species in particular is demoted on purpose: which
+            bird it was matters less here than what it was doing. */}
         <button
           type="button"
           onClick={() => setShowDetails(v => !v)}
@@ -255,31 +290,11 @@ export default function Capture() {
               rows={3}
             />
 
-            <div>
-              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Bird sighting</p>
-              <Input
-                placeholder="Species (leave blank if unsure)"
-                value={species}
-                onChange={e => setSpecies(e.target.value)}
-              />
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {BEHAVIOR_OPTIONS.map(b => (
-                  <button
-                    key={b}
-                    type="button"
-                    onClick={() =>
-                      setBehaviors(prev => (prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]))
-                    }
-                    className={cn(
-                      "rounded-full border px-3 py-1 text-xs",
-                      behaviors.includes(b) ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
-                    )}
-                  >
-                    {b}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <Input
+              placeholder="Which bird, if you know (optional)"
+              value={species}
+              onChange={e => setSpecies(e.target.value)}
+            />
           </div>
         )}
       </div>

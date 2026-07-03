@@ -51,6 +51,18 @@ export const WATER_CONDITIONS = [
 
 export const BEHAVIOR_OPTIONS = ["Drinking", "Bathing", "Foraging", "Wading", "Preening", "Resting"];
 
+// The interaction is the observation; the species is a secondary detail
+// about it — so behaviors lead, species trails, and an unidentified bird
+// with a known behavior never gets buried under a generic "Unidentified
+// bird" label it doesn't need.
+export function formatSighting(species: string | null, behaviors: string[]): string {
+  const behaviorText = behaviors.length > 0 ? behaviors.join(", ") : null;
+  if (behaviorText && species) return `${behaviorText} · ${species}`;
+  if (behaviorText) return behaviorText;
+  if (species) return species;
+  return "Unidentified bird";
+}
+
 // Generate login URL at runtime so redirect URI reflects the current origin.
 export const getLoginUrl = () => {
   const oauthPortalUrl = import.meta.env.VITE_OAUTH_PORTAL_URL;

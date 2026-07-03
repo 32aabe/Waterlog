@@ -115,6 +115,12 @@ export async function getUserByOpenId(openId: string) {
 // ---------------------------------------------------------------------------
 
 export const UNIDENTIFIED_SPECIES = "Unidentified bird";
+// `observations.species` is NOT NULL, so a pure water-spot check (no bird
+// involved at all) needs its own sentinel distinct from "a bird was here,
+// species unknown" — otherwise every moment would render a fake bird
+// sighting, which undercuts water-interaction-first capture as much as a
+// species-first one would. Never shown to users; filtered out on read.
+const NO_SIGHTING = "__no_sighting__";
 
 export type LifecycleState = "alive" | "drying" | "dry" | "reawakened";
 
@@ -216,14 +222,17 @@ function toMomentSummary(obs: Observation): MomentSummary {
     note: obs.notes,
     photoUrls: obs.photoUrl ? [obs.photoUrl] : [],
     waterCondition: obs.waterDepth,
-    sightings: [
-      {
-        id: obs.id,
-        species: obs.species === UNIDENTIFIED_SPECIES ? null : obs.species,
-        count: obs.count,
-        behaviors: parseJsonArray(obs.primaryBehaviors),
-      },
-    ],
+    sightings:
+      obs.species === NO_SIGHTING
+        ? []
+        : [
+            {
+              id: obs.id,
+              species: obs.species === UNIDENTIFIED_SPECIES ? null : obs.species,
+              count: obs.count,
+              behaviors: parseJsonArray(obs.primaryBehaviors),
+            },
+          ],
   };
 }
 
@@ -294,9 +303,11 @@ export async function getSpotDetail(spotId: number) {
 /**
  * Log a Moment at a spot, with its (single) bird Sighting if any — the
  * write path behind the under-10-second capture flow. `spotId`/`userId`
- * become `locationId`/`userId` on the observation; an omitted species
- * defaults to "Unidentified bird" so a birdless-but-real entry doesn't
- * need a nullable column.
+ * become `locationId`/`userId` on the observation. Behavior alone (no
+ * species typed) is a complete sighting — water interaction is the
+ * observation, species is secondary detail about it. Omitting a sighting
+ * entirely (no behavior tapped, no species typed) is also complete: a
+ * plain water-spot check with no bird involved.
  */
 export async function createMoment(data: {
   spotId: number;
@@ -328,7 +339,7 @@ export async function createMoment(data: {
     latitude: spot.latitude,
     longitude: spot.longitude,
     placeName: spot.placeName,
-    species: sighting?.species || UNIDENTIFIED_SPECIES,
+    species: sighting ? sighting.species || UNIDENTIFIED_SPECIES : NO_SIGHTING,
     count: sighting?.count ?? 1,
     primaryBehaviors: sighting?.behaviors ? JSON.stringify(sighting.behaviors) : null,
     waterResourceType: spot.waterResourceType,
@@ -378,7 +389,7 @@ export async function getUserStats(userId: number) {
   const rows = await db.select().from(observations).where(eq(observations.userId, userId));
   const spotIds = new Set(rows.map(r => r.locationId).filter((id): id is number => id !== null));
   const species = new Set(
-    rows.map(r => r.species).filter(s => s && s !== UNIDENTIFIED_SPECIES),
+    rows.map(r => r.species).filter(s => s && s !== UNIDENTIFIED_SPECIES && s !== NO_SIGHTING),
   );
 
   return {

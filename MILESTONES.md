@@ -2,13 +2,18 @@
 
 Roadmap from the Ver.3 design proposal, tracked here as work lands.
 
-## Standing principle (2026-07-03)
+## Standing principles (2026-07-03)
 
-The capture experience outranks every other feature. The test for any
-change to the Capture screen: does this help or hurt someone who stops for
-ten seconds because they just noticed a bird interacting with water? If a
-feature makes recording slower, simplify or defer it rather than the
-photo/save path.
+- **Capture speed outranks every other feature.** The test for any change
+  to the Capture screen: does this help or hurt someone who stops for ten
+  seconds because they just noticed a bird interacting with water? If a
+  feature makes recording slower, simplify or defer it rather than the
+  photo/save path.
+- **The interaction is the observation, the species is a detail about it.**
+  The primary thing being recorded is not "a bird" — it's what the bird
+  was doing with water. Water-interaction (behavior) fields lead; species
+  trails as optional, secondary detail, in the capture flow and in every
+  place a moment is displayed.
 
 ## Milestone 1 — Foundation ✅
 
@@ -59,6 +64,28 @@ the product-language API maps onto those tables today.
       tapping Save for real requires an account, and it opens sign-in in
       a new tab so the in-progress photo/note is never lost. Auth
       refetches automatically when the user returns to the tab.
+
+### Water-interaction-first pass (2026-07-03)
+
+- [x] Promoted behavior chips (Drinking/Bathing/Foraging/Wading/Preening/
+      Resting) out of the collapsed "Bird sighting" block and above the
+      fold as "Water interaction" — a single tap, framed as the main
+      action of the flow. Species moved into the collapsed "Add details"
+      section, relabeled "Which bird, if you know (optional)."
+      Renamed the spot's own condition chips "Water level" to disambiguate
+      from the bird's "Water interaction."
+- [x] Fixed a save-logic bug where tapping behavior chips without also
+      typing a species silently dropped the sighting — behavior alone is
+      now the expected complete case, not a fallback.
+- [x] Fixed the `locations`/`observations` adapter so a moment with no
+      bird at all (no behavior tapped, no species typed) no longer stores
+      and displays a phantom "Unidentified bird" sighting — added a
+      not-user-visible sentinel to distinguish "no bird" from "a bird,
+      unidentified" without a schema change.
+- [x] Spot Story and Journal now show behavior first, species second
+      (`formatSighting`), and give behavior-bearing sightings the primary
+      badge color so water interaction visually reads as the main fact
+      everywhere a moment appears, not just on the capture screen.
 
 ### Remaining
 
