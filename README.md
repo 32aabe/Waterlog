@@ -33,14 +33,25 @@ schema redesign. Concretely:
   doubles as the spot type (puddle/pond/fountain/…). Lifecycle state
   (alive/drying/dry/reawakened) is **computed at read time** from recent
   observations, not stored.
-- A **Moment** (with at most one **Sighting**) is an `observations` row.
-  `notes` → note, `photoUrl` → photoUrls (single-element), `waterDepth` →
-  the quick-capture water condition, `primaryBehaviors`/`species`/`count` →
-  the sighting — behavior leads, species is optional detail about it (see
+- A **Moment** is one or more `observations` rows sharing a moment group
+  key (Milestone 2) — one row per bird **Sighting**, or a single
+  `NO_SIGHTING` row for a plain water-spot check. `notes` → note,
+  `photoUrl` → photoUrls (JSON-encoded array, reusing the same
+  parse-or-wrap helper already used for behaviors), `waterDepth` → the
+  quick-capture water condition, `primaryBehaviors`/`species`/`count` →
+  each sighting — behavior leads, species is optional detail about it (see
   "Product principle" below). `species` holds one of two sentinels rather
   than requiring a nullable column: `"Unidentified bird"` (a bird was
   there, un-typed) or an internal `NO_SIGHTING` value (no bird at all —
-  a plain water-spot check, which renders zero sightings, not a fake one).
+  renders zero sightings, not a fake one).
+- The **moment group key** lives in `distanceFromWater` — an unused
+  legacy column Ver.3 never otherwise collects — holding a short random id
+  shared by every row inserted from one capture. Rows reading it back
+  group into one Moment with multiple Sightings; rows without one (or
+  with a unique one) are simply their own singleton moment, so this is
+  fully backward-compatible with the single-row moments earlier
+  milestones already created. See `groupObservationsIntoMoments` in
+  `server/db.ts`.
 
 Revisit this once there's real usage data — see `MILESTONES.md`.
 
@@ -55,6 +66,22 @@ displayed (Spot Story, Journal), behavior renders first and gets the
 primary badge color; species trails. See `MILESTONES.md` for the pass that
 implemented this and why it required a small server-side fix (see "Data
 model" above).
+
+## Capture features (Milestone 2)
+
+- **Multi-photo**: up to 6 photos per moment.
+- **Multi-sighting**: more than one bird per moment (a sparrow bathing
+  while a pigeon drinks), each with its own behaviors and optional species.
+- **Voice notes**: an alternative, faster-than-typing input for the note
+  field. Recorded audio is transcribed (`server/_core/voiceTranscription.ts`)
+  and the resulting text is merged into the note — the audio itself is not
+  persisted or referenced anywhere in the database; it's an input method,
+  not a stored asset.
+- **Nearby-spot suggestion**: within ~25m of an existing spot, capture
+  defaults to logging there instead of creating a duplicate (visibly, and
+  overridable in one tap); within ~120m, nearby spots are offered as
+  one-tap alternatives to "New spot." Computed client-side from the
+  already-fetched spot list — no new backend query.
 
 ## Getting started
 

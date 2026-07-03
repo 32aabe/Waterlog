@@ -5,6 +5,8 @@ import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { storagePut } from "./storage";
+import { transcribeAudio } from "./_core/voiceTranscription";
+import { TRPCError } from "@trpc/server";
 
 const spotTypeSchema = z.enum([
   "puddle",
@@ -102,6 +104,21 @@ export const appRouter = router({
         const buffer = Buffer.from(base64, "base64");
         const { url } = await storagePut(`moments/${input.filename}`, buffer, contentType);
         return { url };
+      }),
+
+    // Voice notes are a faster-than-typing input for the note field, not a
+    // stored asset in their own right: we transcribe and hand back text,
+    // and don't persist the audio URL anywhere (no schema change needed).
+    // The uploaded clip itself is left in storage rather than deleted —
+    // an acceptable, deliberate trade-off at this stage.
+    transcribeVoice: protectedProcedure
+      .input(z.object({ audioUrl: z.string() }))
+      .mutation(async ({ input }) => {
+        const result = await transcribeAudio({ audioUrl: input.audioUrl });
+        if ("error" in result) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: result.error, cause: result });
+        }
+        return { text: result.text };
       }),
   }),
 });

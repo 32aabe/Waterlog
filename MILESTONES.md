@@ -87,11 +87,39 @@ the product-language API maps onto those tables today.
       badge color so water interaction visually reads as the main fact
       everywhere a moment appears, not just on the capture screen.
 
+### Voice, multi-photo, multi-sighting, nearby-spot (2026-07-03) ✅
+
+- [x] **Voice notes**: a mic button next to the (secondary, collapsed)
+      Note field records audio, uploads it, transcribes it
+      (`voiceTranscription.ts`), and merges the text into the note. Voice
+      is an input method for typing faster, not a stored asset — no
+      schema change, nothing persisted beyond the resulting text.
+- [x] **Multi-photo**: up to 6 photos per moment. The zero-photo state is
+      pixel-identical to before (same big "tap to add a photo" tile); a
+      thumbnail row with an add tile only appears once a photo exists, so
+      the common one-photo case isn't slowed down by gallery chrome.
+      `photoUrl` now holds a JSON-encoded array (reusing the existing
+      parse-or-wrap helper already used for behaviors) instead of one bare
+      URL — no schema change.
+- [x] **Multi-sighting**: more than one bird per moment. Each sighting
+      becomes its own `observations` row sharing a moment group key (see
+      README → "Data model"), stored in the previously-unused
+      `distanceFromWater` column — no schema change. The primary sighting
+      keeps the water-interaction-first layout (behavior chips above the
+      fold, species collapsed); additional sightings are opt-in compact
+      cards via "+ Add another bird," each with their own behavior chips.
+      Fixed `deriveLifecycle`/`getUserStats` to group rows into moments
+      first so a 3-bird visit counts as one moment and one lifecycle data
+      point, not three.
+- [x] **Nearby-spot suggestion**: computed client-side (Haversine, from
+      the already-fetched spot list — no new backend query). Within ~25m
+      of an existing spot, capture defaults to it instead of creating a
+      duplicate, shown transparently as a pre-selected chip (not silent);
+      within ~120m, nearby spots are offered as one-tap alternatives to
+      "New spot," which stays the default when there's no confident match.
+
 ### Remaining
 
-- [ ] Voice-note capture (wire existing `voiceTranscription.ts`).
-- [ ] Multi-photo and multi-sighting entries.
-- [ ] Nearby-spot suggestion instead of always defaulting to "new spot."
 - [ ] Offline-friendly capture queue (PWA).
 
 ## Milestone 3 — Living Water Map
