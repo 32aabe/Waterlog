@@ -6,6 +6,7 @@ import { z } from "zod";
 import * as db from "./db";
 import { storagePut } from "./storage";
 import { transcribeAudio } from "./_core/voiceTranscription";
+import { describeLocation } from "./_core/geocode";
 import { TRPCError } from "@trpc/server";
 
 const spotTypeSchema = z.enum([
@@ -47,6 +48,14 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .query(({ input }) => db.getSpotDetail(input.id)),
 
+    // Quietly turns coordinates into a short place phrase for Capture's
+    // dateline — "near Fulton Fountain" instead of a raw lat/lng — and,
+    // when a new spot is created, becomes its placeName. Never blocks or
+    // fails the capture flow: resolves to null wherever it can't help.
+    describeLocation: publicProcedure
+      .input(z.object({ latitude: z.number(), longitude: z.number() }))
+      .query(({ input }) => describeLocation(input.latitude, input.longitude)),
+
     create: protectedProcedure
       .input(
         z.object({
@@ -74,6 +83,7 @@ export const appRouter = router({
           photoUrls: z.array(z.string()).optional(),
           waterCondition: z.string().optional(),
           sightings: z.array(sightingInputSchema).optional(),
+          weather: z.string().optional(),
         }),
       )
       .mutation(({ ctx, input }) =>

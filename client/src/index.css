@@ -40,80 +40,111 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-warm: var(--warm);
+  --color-warm-mist: var(--warm-mist);
 }
 
 :root {
-  /* Waterlog palette: pond teal over a pale water-mist paper, replacing
-     Brooktrack's corporate blue. Amber is reserved for lifecycle-state
-     accents (drying/reawakened) elsewhere in the app, not used as chrome. */
-  --primary: var(--color-teal-700);
-  --primary-foreground: var(--color-teal-50);
-  --sidebar-primary: var(--color-teal-600);
-  --sidebar-primary-foreground: var(--color-teal-50);
-  --chart-1: var(--color-teal-300);
-  --chart-2: var(--color-teal-500);
-  --chart-3: var(--color-teal-600);
-  --chart-4: var(--color-teal-700);
-  --chart-5: var(--color-teal-800);
+  /* Waterlog palette, per docs/03_DESIGN_MANIFESTO.md — still water over
+     paper, not a brand color. Warmth (--warm) is rationed: it marks only
+     the rare tender moment (a spot reawakening), never chrome, never a
+     second accent competing with water. */
+  --paper: #eef1ef;
+  --ink: #212f30;
+  --muted-ink: #5c6b69;
+  --faint-ink: #8b9997;
+  --line: #d7ddd8;
+  --water-deep: #2f4a52;
+  --water: #4c7078;
+  --water-soft: #9ab7b8;
+  --water-mist: #dfe9e8;
+  --water-mist-2: #eaf1f0;
+  --warm: #9c8256;
+  --warm-mist: #efe9da;
+
+  --ease-ripple: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --primary: var(--water-deep);
+  --primary-foreground: var(--water-mist-2);
+  --sidebar-primary: var(--water-deep);
+  --sidebar-primary-foreground: var(--water-mist-2);
+  --chart-1: var(--water-mist);
+  --chart-2: var(--water-soft);
+  --chart-3: var(--water);
+  --chart-4: var(--water-deep);
+  --chart-5: var(--ink);
   --radius: 0.85rem;
-  --background: oklch(0.975 0.006 185);
-  --foreground: oklch(0.22 0.03 195);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.03 195);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.03 195);
-  --secondary: oklch(0.955 0.012 185);
-  --secondary-foreground: oklch(0.32 0.03 195);
-  --muted: oklch(0.955 0.012 185);
-  --muted-foreground: oklch(0.5 0.03 195);
-  --accent: oklch(0.93 0.03 185);
-  --accent-foreground: oklch(0.22 0.03 195);
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: #ffffff;
+  --card-foreground: var(--ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--ink);
+  --secondary: var(--water-mist);
+  --secondary-foreground: var(--water-deep);
+  --muted: var(--water-mist);
+  --muted-foreground: var(--muted-ink);
+  --accent: var(--water-mist-2);
+  --accent-foreground: var(--ink);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.89 0.02 185);
-  --input: oklch(0.89 0.02 185);
-  --ring: oklch(0.55 0.08 190);
-  --sidebar: oklch(0.985 0.004 185);
-  --sidebar-foreground: oklch(0.22 0.03 195);
-  --sidebar-accent: oklch(0.955 0.012 185);
-  --sidebar-accent-foreground: oklch(0.22 0.03 195);
-  --sidebar-border: oklch(0.89 0.02 185);
-  --sidebar-ring: oklch(0.55 0.08 190);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--water);
+  --sidebar: var(--paper);
+  --sidebar-foreground: var(--ink);
+  --sidebar-accent: var(--water-mist);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--water);
 }
 
 .dark {
-  --primary: var(--color-teal-500);
-  --primary-foreground: var(--color-teal-50);
-  --sidebar-primary: var(--color-teal-500);
-  --sidebar-primary-foreground: var(--color-teal-50);
-  --background: oklch(0.16 0.02 195);
-  --foreground: oklch(0.88 0.01 185);
-  --card: oklch(0.21 0.02 195);
-  --card-foreground: oklch(0.88 0.01 185);
-  --popover: oklch(0.21 0.02 195);
-  --popover-foreground: oklch(0.88 0.01 185);
-  --secondary: oklch(0.25 0.02 195);
-  --secondary-foreground: oklch(0.75 0.01 185);
-  --muted: oklch(0.25 0.02 195);
-  --muted-foreground: oklch(0.65 0.02 185);
-  --accent: oklch(0.28 0.03 195);
-  --accent-foreground: oklch(0.92 0.01 185);
+  --paper: #182223;
+  --ink: #e4eae8;
+  --muted-ink: #9fb0ad;
+  --faint-ink: #71827f;
+  --line: color-mix(in oklab, white 12%, transparent);
+  --water-deep: #9ab7b8;
+  --water: #7fa0a4;
+  --water-soft: #4c7078;
+  --water-mist: #26393b;
+  --water-mist-2: #1f3032;
+  --warm: #c7ac79;
+  --warm-mist: #3a3324;
+
+  --primary: var(--water-deep);
+  --primary-foreground: #12191a;
+  --sidebar-primary: var(--water-deep);
+  --sidebar-primary-foreground: #12191a;
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: #1f2b2c;
+  --card-foreground: var(--ink);
+  --popover: #1f2b2c;
+  --popover-foreground: var(--ink);
+  --secondary: var(--water-mist);
+  --secondary-foreground: var(--ink);
+  --muted: var(--water-mist);
+  --muted-foreground: var(--muted-ink);
+  --accent: var(--water-mist-2);
+  --accent-foreground: var(--ink);
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.55 0.08 190);
-  --chart-1: var(--color-teal-300);
-  --chart-2: var(--color-teal-500);
-  --chart-3: var(--color-teal-600);
-  --chart-4: var(--color-teal-700);
-  --chart-5: var(--color-teal-800);
-  --sidebar: oklch(0.21 0.02 195);
-  --sidebar-foreground: oklch(0.88 0.01 185);
-  --sidebar-accent: oklch(0.25 0.02 195);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.55 0.08 190);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--water);
+  --chart-1: var(--water-mist);
+  --chart-2: var(--water-soft);
+  --chart-3: var(--water);
+  --chart-4: var(--water-deep);
+  --chart-5: var(--faint-ink);
+  --sidebar: var(--paper);
+  --sidebar-foreground: var(--ink);
+  --sidebar-accent: var(--water-mist);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--water);
 }
 
 @layer base {
@@ -150,28 +181,56 @@
     font-family: var(--font-display);
   }
 
-  /* A spot that's alive or just reawakened should read that way at a
-     glance on the map, without needing a tap. Ring pulses outward like a
-     ripple; disabled entirely under reduced-motion. */
+  /* The ripple is Waterlog's one recurring gesture, not a marker-only
+     effect — the same expanding, fading ring marks a tap, a save, a
+     notification, and (here, looping) the one state worth animating on
+     the map: a spot reawakening. See client/src/lib/ripple.ts for the
+     one-shot version used at interaction/confirmation moments. */
+  @keyframes ripple-expand {
+    0% {
+      transform: scale(0.9);
+      opacity: 0.6;
+    }
+    100% {
+      transform: scale(2.4);
+      opacity: 0;
+    }
+  }
+
+  /* Two rings drift outward a beat apart, like a real ripple rather than
+     a notification badge — slow, uneven, and reserved for reawakened
+     spots only. Disabled entirely under reduced-motion. */
   @media (prefers-reduced-motion: no-preference) {
-    .map-pulse::before {
+    .map-pulse::before,
+    .map-pulse::after {
       content: "";
       position: absolute;
       inset: 0;
       border-radius: 9999px;
-      background: currentColor;
-      opacity: 0.55;
-      animation: map-pulse-ring 2.2s ease-out infinite;
+      border: 1.5px solid currentColor;
+      opacity: 0;
+      animation: ripple-expand 3600ms var(--ease-ripple) infinite;
+    }
+    .map-pulse::after {
+      animation-delay: 1200ms;
     }
   }
-  @keyframes map-pulse-ring {
-    0% {
-      transform: scale(1);
-      opacity: 0.55;
+
+  /* A quiet settle-in for a screen's first paint — never a bounce or a
+     slide, just enough motion to feel unhurried. */
+  @media (prefers-reduced-motion: no-preference) {
+    .settle-in {
+      animation: settle-in 700ms var(--ease-ripple) both;
     }
-    100% {
-      transform: scale(2.6);
+  }
+  @keyframes settle-in {
+    from {
       opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
   }
 }

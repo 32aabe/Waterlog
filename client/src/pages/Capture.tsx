@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { distanceMeters } from "@/lib/geo";
 import { toast } from "sonner";
 import { getLoginUrl, SPOT_TYPE_LABELS, getSpotTypeLabel, WATER_CONDITIONS, BEHAVIOR_OPTIONS, COMMON_SPECIES, type SpotType } from "@/const";
+import { spawnRipple } from "@/lib/ripple";
+import { fetchAmbientWeather, formatDatelineTime, type AmbientWeather } from "@/lib/weather";
 import { ArrowLeft, Camera, Plus, X, ChevronDown, Mic, Square } from "lucide-react";
 
 function blobToDataUrl(blob: Blob): Promise<string> {
@@ -110,6 +112,16 @@ export default function Capture() {
   const [saved, setSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Ambient context for the dateline — filled in quietly, never asked
+  // for, never blocking Save. See client/src/lib/weather.ts.
+  const [weather, setWeather] = useState<AmbientWeather | null>(null);
+  const datelineTime = useMemo(() => formatDatelineTime(new Date()), []);
+  const rippleOriginRef = useRef<HTMLDivElement>(null);
+  // The nearby-spot picker only needs to be shown by default in the
+  // genuinely ambiguous case; a confident auto-match instead gets a
+  // quiet recognition line, with the picker one tap away if it's wrong.
+  const [showPicker, setShowPicker] = useState(false);
+
   // Voice note: an alternative, faster-than-typing way to fill the note
   // field, not a separate stored asset — see server/routers.ts.
   const [recording, setRecording] = useState(false);
@@ -127,6 +139,28 @@ export default function Capture() {
       );
     }
   }, [urlSpotId]);
+
+  // Weather arrives quietly once coordinates do — never gates Save, and
+  // simply leaves its clause out of the dateline if it's slow or fails.
+  useEffect(() => {
+    if (!coords) return;
+    let cancelled = false;
+    fetchAmbientWeather(coords.lat, coords.lng).then(w => {
+      if (!cancelled) setWeather(w);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [coords]);
+
+  // A short place phrase for the dateline, and — if this turns out to be
+  // a new spot — its placeName. Fetched speculatively whenever there's no
+  // spot already resolved; harmless to fetch even if the user ends up
+  // picking a nearby existing spot instead.
+  const { data: placeText } = trpc.spots.describeLocation.useQuery(
+    { latitude: coords?.lat ?? 0, longitude: coords?.lng ?? 0 },
+    { enabled: !!coords && !urlSpotId },
+  );
 
   // Signing in requires leaving the app (OAuth redirect), which would
   // otherwise wipe an in-progress photo/note for anyone who opened
@@ -260,6 +294,7 @@ export default function Capture() {
           latitude: coords.lat,
           longitude: coords.lng,
           spotType,
+          placeName: placeText ?? undefined,
         });
         resolvedSpotId = spot?.id;
       }
@@ -292,6 +327,7 @@ export default function Capture() {
         photoUrls: photoUrls.length > 0 ? photoUrls : undefined,
         waterCondition,
         sightings: sightingsPayload.length > 0 ? sightingsPayload : undefined,
+        weather: weather ? `${weather.condition ? `${weather.condition}, ` : ""}${weather.tempF}°F` : undefined,
       });
 
       await utils.spots.list.invalidate();
@@ -308,6 +344,10 @@ export default function Capture() {
         }
       }
 
+      // The place received the moment — same quiet acknowledgment whether
+      // this spot is brand new or long-known (see docs/design/02_CAPTURE_SCREEN.md,
+      // "Completion"). No success-check energy, no separate copy for the
+      // two cases; it fades into the spot itself a beat later.
       setSaved(true);
       setTimeout(() => navigate(`/spot/${resolvedSpotId}`), 700);
     } catch (err) {
@@ -315,19 +355,30 @@ export default function Capture() {
     }
   };
 
+  // The dateline: time is instant, place and weather arrive a beat later
+  // over the network and simply join the sentence when they're ready —
+  // nothing here ever gates Save. Before location resolves at all, it
+  // reads as the app quietly getting its bearings rather than a stalled
+  // "Locating…" status. Place is only worth naming for a spot that isn't
+  // already known (an existing spot's own name already does that job).
+  // Weather trails last, deliberately — Waterlog is about water, not
+  // weather; the sky is incidental context, never the thing that
+  // outranks the water itself (see the Water section below, which is
+  // sized to actually carry that weight).
+  const datelineText = !coords
+    ? "Remembering where you are…"
+    : [datelineTime, !targetSpotId && placeText ? `near ${placeText}` : null, weather ? `${weather.condition ? `${weather.condition}, ` : ""}${weather.tempF}°F` : null]
+        .filter(Boolean)
+        .join(" · ");
+
   return (
-    <div className="min-h-[100dvh] pb-40">
-      <header className="flex items-center gap-3 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3">
+    <div className="settle-in min-h-[100dvh] pb-40">
+      <div className="flex items-center px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-2">
         <Button size="icon" variant="ghost" onClick={() => window.history.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div>
-          <h1 className="text-lg font-semibold text-foreground">What happened here?</h1>
-          <p className="text-xs text-muted-foreground">
-            {existingSpot ? existingSpot.spot.name || getSpotTypeLabel(existingSpot.spot.spotType) : "A photo is enough to start."}
-          </p>
-        </div>
-      </header>
+      </div>
+      <p className="font-display px-4 pb-3 text-[15px] italic text-muted-foreground">{datelineText}</p>
 
       <div className="mx-4 space-y-4">
         {/* Photo — the primary, fastest input. Tapping it is the one
@@ -383,17 +434,54 @@ export default function Capture() {
           }}
         />
 
-        {/* Nearby spots — only rendered when there's actually something
-            nearby, so the common "genuinely new puddle" case looks
-            exactly like it always has. A close match is pre-selected
-            (visibly, not silently) so a revisit doesn't fragment into a
-            duplicate spot; farther matches are offered but "New spot"
-            stays the default. */}
-        {!urlSpotId && nearby.length > 0 && (
+        {/* Nearby spots. A confident auto-match (≤25m) reads as quiet
+            recognition of somewhere already on the user's map, not a
+            decision to make — the picker only surfaces if they say it's
+            wrong. The genuinely ambiguous case (25–120m, no confident
+            match) keeps the equal-weight picker, since that's a real
+            choice. Neither renders at all for the common "nothing nearby"
+            case, which looks exactly like it always has. */}
+        {!urlSpotId && autoMatch && (
           <div>
-            <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-              {autoMatch ? "Logging at" : "Nearby — is this one of these?"}
+            <p className="font-display text-[15px] text-foreground">
+              You're back at <span className="font-medium">{autoMatch.name || getSpotTypeLabel(autoMatch.spotType)}</span>.
             </p>
+            {!showPicker ? (
+              <button type="button" onClick={() => setShowPicker(true)} className="mt-1 text-xs text-muted-foreground underline underline-offset-2">
+                Not this one?
+              </button>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {nearby.map(s => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setPickedNearby(s.id)}
+                    className={cn(
+                      "rounded-full border px-3 py-1 text-xs",
+                      pickedNearby === s.id ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                    )}
+                  >
+                    {s.name || getSpotTypeLabel(s.spotType)} · {Math.round(s.distanceM)}m
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setPickedNearby("new")}
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-xs",
+                    pickedNearby === "new" ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                  )}
+                >
+                  New spot
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {!urlSpotId && !autoMatch && nearby.length > 0 && (
+          <div>
+            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Nearby — is this one of these?</p>
             <div className="flex flex-wrap gap-1.5">
               {nearby.map(s => (
                 <button
@@ -427,10 +515,10 @@ export default function Capture() {
             typing, so it reads as the main action of the flow rather than
             a detail hanging off a species field. No default is
             pre-selected — a spot check with no bird is still a complete,
-            valid entry. */}
+            valid entry. Nothing here is marked "optional" — nothing in a
+            field notebook needs to be. */}
         <div>
-          <p className="mb-1.5 text-sm font-semibold text-foreground">Water interaction</p>
-          <p className="mb-1.5 text-xs text-muted-foreground">What was the bird doing? (optional)</p>
+          <p className="mb-1.5 text-sm font-semibold text-foreground">What was it doing?</p>
           <div className="flex flex-wrap gap-1.5">
             {BEHAVIOR_OPTIONS.map(b => (
               <button
@@ -477,7 +565,7 @@ export default function Capture() {
                 ))}
               </div>
               <SpeciesField
-                placeholder="Which bird, if you know (optional)"
+                placeholder="Which bird, if you know"
                 value={s.species}
                 onChange={v => setSightingSpecies(index, v)}
               />
@@ -491,10 +579,12 @@ export default function Capture() {
         )}
 
         {/* Water condition — the spot's current state (how much water,
-            or ice, is here right now), distinct from what the bird was
-            doing above, and distinct from spot type below (what kind of
-            place this is, not what it looks like today). Still a single
-            tap, but secondary to the interaction itself. */}
+            or ice, is here right now). Secondary to the bird's own
+            action above (see "What was it doing?"), since the
+            interaction is the observation and this is context about it —
+            but water is the actual subject of this app, not incidental
+            chrome, so it stays legible rather than shrinking toward
+            invisibility the way weather does in the dateline above. */}
         <div>
           <p className="mb-1.5 text-xs font-medium text-muted-foreground">Water condition</p>
           <div className="flex flex-wrap gap-1.5">
@@ -517,14 +607,17 @@ export default function Capture() {
         {/* Everything else — spot type, a note (or a spoken version of
             it), and the first bird's species — is real but secondary.
             Species in particular is demoted on purpose: which bird it was
-            matters less here than what it was doing. */}
+            matters less here than what it was doing. Labeled as
+            continuing to look, not adding data — "Add details" reads
+            like productivity software; this is the same act of noticing,
+            just closer. */}
         <button
           type="button"
           onClick={() => setShowDetails(v => !v)}
           className="flex items-center gap-1 text-xs font-medium text-muted-foreground"
         >
           <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showDetails && "rotate-180")} />
-          Add details (optional)
+          A closer look
         </button>
 
         {showDetails && (
@@ -579,7 +672,7 @@ export default function Capture() {
                 </button>
               </div>
               <Textarea
-                placeholder="What did this water spot become today? (optional)"
+                placeholder="What caught your attention?"
                 value={note}
                 onChange={e => setNote(e.target.value)}
                 rows={3}
@@ -588,7 +681,7 @@ export default function Capture() {
             </div>
 
             <SpeciesField
-              placeholder="Which bird, if you know (optional)"
+              placeholder="Which bird, if you know"
               value={sightings[0].species}
               onChange={v => setSightingSpecies(0, v)}
             />
@@ -601,32 +694,45 @@ export default function Capture() {
           signed in doesn't block the photo/note above — it only changes
           what this button does. */}
       <div className="fixed inset-x-0 bottom-20 z-40 mx-auto max-w-md px-4">
-        <Button
-          className="w-full shadow-lg"
-          size="lg"
-          disabled={busy || saved || authLoading || (isAuthenticated && !canSubmit) || (!isAuthenticated && !loginUrl)}
-          onClick={() => {
-            if (!isAuthenticated) {
-              if (loginUrl) window.open(loginUrl, "_blank", "noopener,noreferrer");
-              return;
-            }
-            handleSubmit();
-          }}
-        >
-          {saved ? (
-            "Saved"
-          ) : busy || authLoading ? (
-            <Spinner className="h-4 w-4" />
-          ) : !isAuthenticated ? (
-            loginUrl ? "Sign in to save" : "Sign-in unavailable"
-          ) : locating ? (
-            <>
-              <Spinner className="h-4 w-4" /> Locating…
-            </>
-          ) : (
-            "Save moment"
-          )}
-        </Button>
+        <div className="relative">
+          <Button
+            className="w-full shadow-lg"
+            size="lg"
+            disabled={busy || saved || authLoading || (isAuthenticated && !canSubmit) || (!isAuthenticated && !loginUrl)}
+            onClick={e => {
+              // A tap here should feel like a drop landing on still
+              // water, not a button press — see
+              // docs/03_DESIGN_MANIFESTO.md §7. Ring color reads from the
+              // button's own computed style so it follows light/dark
+              // automatically; spawnRipple no-ops under reduced motion.
+              if (rippleOriginRef.current) {
+                const rect = e.currentTarget.getBoundingClientRect();
+                rippleOriginRef.current.style.left = `${e.clientX - rect.left}px`;
+                rippleOriginRef.current.style.top = `${e.clientY - rect.top}px`;
+                const color = getComputedStyle(e.currentTarget).getPropertyValue("--primary-foreground").trim();
+                spawnRipple(rippleOriginRef.current, color || "#fff");
+              }
+              if (!isAuthenticated) {
+                if (loginUrl) window.open(loginUrl, "_blank", "noopener,noreferrer");
+                return;
+              }
+              handleSubmit();
+            }}
+          >
+            {saved ? (
+              "This place now holds this moment."
+            ) : busy || authLoading ? (
+              <Spinner className="h-4 w-4" />
+            ) : !isAuthenticated ? (
+              loginUrl ? "Sign in to save" : "Sign-in unavailable"
+            ) : locating ? (
+              <Spinner className="h-4 w-4" />
+            ) : (
+              "Save moment"
+            )}
+          </Button>
+          <div ref={rippleOriginRef} className="pointer-events-none absolute h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full" />
+        </div>
         {!isAuthenticated && !authLoading && (
           <p className="mt-2 text-center text-xs text-muted-foreground">
             {loginUrl

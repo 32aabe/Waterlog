@@ -33,7 +33,7 @@ export default function Spots() {
         <h1 className="flex items-center gap-1.5 text-lg font-semibold text-foreground">
           <MapPinned className="h-5 w-5 text-primary" /> Spots
         </h1>
-        <p className="text-xs text-muted-foreground">Every water spot the community has found.</p>
+        <p className="text-xs text-muted-foreground">Every spot you've found, all in one place.</p>
       </header>
 
       <div className="mx-4 mb-3 flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">

@@ -127,6 +127,14 @@ interface MapViewProps {
   initialCenter?: google.maps.LatLngLiteral;
   initialZoom?: number;
   onMapReady?: (map: google.maps.Map) => void;
+  /**
+   * A JSON style array (google.maps.MapTypeStyle[]) for muting roads/labels
+   * and emphasizing natural features. Only takes effect on a raster map
+   * (mapId-based vector maps must be styled from the Cloud Console
+   * instead) — harmless no-op otherwise, so callers should still pair it
+   * with their own CSS-level softening as a guaranteed fallback.
+   */
+  mapStyles?: google.maps.MapTypeStyle[];
 }
 
 export function MapView({
@@ -134,6 +142,7 @@ export function MapView({
   initialCenter = { lat: 37.7749, lng: -122.4194 },
   initialZoom = 12,
   onMapReady,
+  mapStyles,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<google.maps.Map | null>(null);
@@ -152,11 +161,14 @@ export function MapView({
     map.current = new window.google.maps.Map(mapContainer.current, {
       zoom: initialZoom,
       center: initialCenter,
-      mapTypeControl: true,
-      fullscreenControl: true,
-      zoomControl: true,
-      streetViewControl: true,
+      // A relationship landscape isn't a navigation tool, so the usual
+      // map chrome (satellite toggle, street view peg-man, fullscreen)
+      // is left off entirely rather than competing with the spots
+      // themselves. Pinch/scroll zoom still works without a visible
+      // control. See docs/design/01_MAP_SCREEN.md.
+      disableDefaultUI: true,
       mapId: "DEMO_MAP_ID",
+      styles: mapStyles,
     });
     if (onMapReady) {
       onMapReady(map.current);

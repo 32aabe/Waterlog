@@ -180,12 +180,9 @@ export type SpotSummary = {
   lifecycleState: LifecycleState;
   firstSeenAt: Date;
   lastActivityAt: Date;
-  /** From the same capped recent-activity window as lifecycle — a story
-   *  hint ("4 moments here"), not an exact lifetime total. */
-  recentMomentCount: number;
-  /** True if the window was fully used, so the real count may be higher
-   *  — the UI can render this as "10+" instead of a precise, wrong number. */
-  recentMomentCountCapped: boolean;
+  /** Every moment ever logged at this spot — a Spot is a place where time
+   *  gathers, so this is a true lifetime total, not a recent-activity hint. */
+  momentCount: number;
 };
 
 export type MomentSighting = {
@@ -203,6 +200,10 @@ export type MomentSummary = {
   note: string | null;
   photoUrls: string[];
   waterCondition: string | null;
+  /** Ambient weather at capture time (see client/src/lib/weather.ts), e.g.
+   *  "Foggy, 53°F" — stored per-observation but previously never read back
+   *  out to any client. Powers the Spot Overview's "recent atmosphere". */
+  weather: string | null;
   sightings: MomentSighting[];
 };
 
@@ -242,6 +243,7 @@ function groupObservationsIntoMoments(rows: Observation[]): MomentSummary[] {
       note: primary.notes,
       photoUrls: parseJsonArray(primary.photoUrl),
       waterCondition: primary.waterDepth,
+      weather: primary.weather,
       sightings: groupRows
         .filter(r => r.species !== NO_SIGHTING)
         .map(r => ({
@@ -254,8 +256,6 @@ function groupObservationsIntoMoments(rows: Observation[]): MomentSummary[] {
   });
 }
 
-const LIFECYCLE_WINDOW_ROWS = 10;
-
 /**
  * A spot's lifecycle is derived, not stored: look at its most recent
  * Moment(s) rather than a persisted state column. A spot reported "dry" is
@@ -263,50 +263,48 @@ const LIFECYCLE_WINDOW_ROWS = 10;
  * report is "reawakened"; one with no report in over a week is "drying";
  * otherwise it's "alive". Groups rows into moments first so a
  * multi-sighting visit (several sibling rows) counts as one data point,
- * not several. Pure — takes an already-fetched, already-capped row window;
- * see fetchLifecycleRows for where those rows come from.
+ * not several. Pure — takes every observation row for the spot; see
+ * fetchSpotObservationRows for where those rows come from.
  */
-function computeLifecycle(
-  rows: Observation[],
-  locationCreatedAt: Date,
-): { state: LifecycleState; lastActivityAt: Date; recentMomentCount: number; recentMomentCountCapped: boolean } {
+function computeLifecycle(rows: Observation[], locationCreatedAt: Date): { state: LifecycleState; lastActivityAt: Date } {
   if (rows.length === 0) {
-    return { state: "alive", lastActivityAt: locationCreatedAt, recentMomentCount: 0, recentMomentCountCapped: false };
+    return { state: "alive", lastActivityAt: locationCreatedAt };
   }
 
   const moments = groupObservationsIntoMoments(rows);
   const [latest, prior] = moments;
   const daysSinceLatest = (Date.now() - new Date(latest.capturedAt).getTime()) / 86_400_000;
-  const recentMomentCount = moments.length;
-  const recentMomentCountCapped = rows.length === LIFECYCLE_WINDOW_ROWS;
 
   if (latest.waterCondition === "dry") {
-    return { state: "dry", lastActivityAt: latest.capturedAt, recentMomentCount, recentMomentCountCapped };
+    return { state: "dry", lastActivityAt: latest.capturedAt };
   }
   if (prior?.waterCondition === "dry" && daysSinceLatest < 3) {
-    return { state: "reawakened", lastActivityAt: latest.capturedAt, recentMomentCount, recentMomentCountCapped };
+    return { state: "reawakened", lastActivityAt: latest.capturedAt };
   }
   if (daysSinceLatest > 7) {
-    return { state: "drying", lastActivityAt: latest.capturedAt, recentMomentCount, recentMomentCountCapped };
+    return { state: "drying", lastActivityAt: latest.capturedAt };
   }
-  return { state: "alive", lastActivityAt: latest.capturedAt, recentMomentCount, recentMomentCountCapped };
+  return { state: "alive", lastActivityAt: latest.capturedAt };
 }
 
-async function fetchLifecycleRows(source: DataSource, locationId: number): Promise<Observation[]> {
+/**
+ * Every observation ever logged at a spot, newest first — used both to
+ * derive lifecycle (only the first couple of rows matter for that) and to
+ * count the spot's true lifetime moment total. A personal water journal's
+ * per-spot history is small enough that fetching all of it is cheap; no
+ * window or cap.
+ */
+async function fetchSpotObservationRows(source: DataSource, locationId: number): Promise<Observation[]> {
   if (source.mode === "memory") {
-    return (await memoryStore.listObservationsByLocationId(locationId)).slice(0, LIFECYCLE_WINDOW_ROWS);
+    return memoryStore.listObservationsByLocationId(locationId);
   }
-  return source.db
-    .select()
-    .from(observations)
-    .where(eq(observations.locationId, locationId))
-    .orderBy(desc(observations.createdAt))
-    .limit(LIFECYCLE_WINDOW_ROWS);
+  return source.db.select().from(observations).where(eq(observations.locationId, locationId)).orderBy(desc(observations.createdAt));
 }
 
 function toSpotSummary(
   loc: Location,
-  lifecycle: { state: LifecycleState; lastActivityAt: Date; recentMomentCount: number; recentMomentCountCapped: boolean },
+  lifecycle: { state: LifecycleState; lastActivityAt: Date },
+  momentCount: number,
 ): SpotSummary {
   return {
     id: loc.id,
@@ -319,8 +317,7 @@ function toSpotSummary(
     lifecycleState: lifecycle.state,
     firstSeenAt: loc.createdAt,
     lastActivityAt: lifecycle.lastActivityAt,
-    recentMomentCount: lifecycle.recentMomentCount,
-    recentMomentCountCapped: lifecycle.recentMomentCountCapped,
+    momentCount,
   };
 }
 
@@ -364,7 +361,10 @@ export async function listSpots(): Promise<SpotSummary[]> {
       : await source.db.select().from(locations).orderBy(desc(locations.createdAt));
 
   return Promise.all(
-    rows.map(async loc => toSpotSummary(loc, computeLifecycle(await fetchLifecycleRows(source, loc.id), loc.createdAt))),
+    rows.map(async loc => {
+      const obsRows = await fetchSpotObservationRows(source, loc.id);
+      return toSpotSummary(loc, computeLifecycle(obsRows, loc.createdAt), groupObservationsIntoMoments(obsRows).length);
+    }),
   );
 }
 
@@ -376,8 +376,8 @@ export async function getSpotById(id: number): Promise<SpotSummary | null> {
       : (await source.db.select().from(locations).where(eq(locations.id, id)).limit(1))[0];
   if (!row) return null;
 
-  const lifecycle = computeLifecycle(await fetchLifecycleRows(source, id), row.createdAt);
-  return toSpotSummary(row, lifecycle);
+  const obsRows = await fetchSpotObservationRows(source, id);
+  return toSpotSummary(row, computeLifecycle(obsRows, row.createdAt), groupObservationsIntoMoments(obsRows).length);
 }
 
 /**
@@ -424,12 +424,10 @@ export async function createMoment(data: {
     count?: number;
     behaviors?: string[];
   }>;
-  /** Server-internal only, both below — not in the tRPC router's input
-   *  schema, so no real request can backdate a moment or set weather
-   *  directly (weather capture isn't a capture-flow field yet). Used by
-   *  server/seedDemoData.ts. */
-  capturedAt?: Date;
   weather?: string;
+  /** Server-internal only — not in the tRPC router's input schema, so no
+   *  real request can backdate a moment. Used by server/seedDemoData.ts. */
+  capturedAt?: Date;
 }): Promise<MomentSummary | null> {
   const source = await resolveDataSource();
 

@@ -6,13 +6,22 @@ export function dayHeaderLabel(date: Date): string {
 
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
-  if (diffDays > 1 && diffDays < 7) return date.toLocaleDateString(undefined, { weekday: "long" });
+  // "en-US" pinned explicitly rather than left to the runtime's default
+  // locale — this app's demo copy is English-only throughout, and an
+  // unpinned locale silently renders this in whatever the OS/browser is
+  // set to (surfaced as Korean day headers during design review).
+  if (diffDays > 1 && diffDays < 7) return date.toLocaleDateString("en-US", { weekday: "long" });
 
   const sameYear = date.getFullYear() === now.getFullYear();
   return date.toLocaleDateString(
-    undefined,
+    "en-US",
     sameYear ? { month: "long", day: "numeric" } : { month: "long", day: "numeric", year: "numeric" },
   );
+}
+
+/** "Mar 3, 2026" — a plain, quiet date for "Since ..." lines. Always en-US, same reasoning as dayHeaderLabel above. */
+export function shortDateLabel(date: Date): string {
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 /** Groups already newest-first items into day buckets, preserving order. */
@@ -51,19 +60,4 @@ export function findOnThisDay<T extends { capturedAt: string | Date }>(items: T[
       return d.getMonth() === now.getMonth() && d.getDate() === now.getDate() && d.getFullYear() !== now.getFullYear();
     }) ?? null
   );
-}
-
-/** Bucket items into N trailing weekly counts, oldest first, this week last. */
-export function weeklyActivityCounts<T extends { capturedAt: string | Date }>(items: T[], weeks: number): number[] {
-  const now = new Date();
-  const msPerWeek = 7 * 86_400_000;
-  const currentWeekStart = Math.floor(now.getTime() / msPerWeek);
-
-  const counts = new Array(weeks).fill(0);
-  for (const item of items) {
-    const weekIndex = currentWeekStart - Math.floor(new Date(item.capturedAt).getTime() / msPerWeek);
-    const bucket = weeks - 1 - weekIndex;
-    if (bucket >= 0 && bucket < weeks) counts[bucket]++;
-  }
-  return counts;
 }

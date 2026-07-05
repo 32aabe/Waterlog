@@ -3,15 +3,11 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@/components/ui/spinner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ActivitySparkline } from "@/components/ActivitySparkline";
 import { formatDistanceToNow, differenceInYears } from "date-fns";
 import { BookOpen, Plus, Sparkles } from "lucide-react";
 import { formatSighting } from "@/const";
-import { dayHeaderLabel, groupByDay, findOnThisDay, weeklyActivityCounts } from "@/lib/dates";
-
-const ACTIVITY_WEEKS = 10;
+import { dayHeaderLabel, groupByDay, findOnThisDay } from "@/lib/dates";
 
 export default function Journal() {
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -24,14 +20,9 @@ export default function Journal() {
   const { data: journal, isLoading } = trpc.moments.listJournal.useQuery(undefined, {
     enabled: isAuthenticated,
   });
-  const { data: stats } = trpc.moments.getUserStats.useQuery(undefined, { enabled: isAuthenticated });
 
   const onThisDay = useMemo(() => (journal ? findOnThisDay(journal) : null), [journal]);
   const dayGroups = useMemo(() => (journal ? groupByDay(journal) : []), [journal]);
-  const activityCounts = useMemo(
-    () => (journal ? weeklyActivityCounts(journal, ACTIVITY_WEEKS) : []),
-    [journal],
-  );
 
   if (!isAuthenticated) return null;
 
@@ -44,31 +35,12 @@ export default function Journal() {
         <p className="text-xs text-muted-foreground">Every moment you've logged, in order.</p>
       </header>
 
-      {stats && (
-        <div className="mx-4 mb-4 rounded-xl border border-border bg-card p-4">
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: "Moments", value: stats.totalMoments },
-              { label: "Spots visited", value: stats.spotsVisited },
-              { label: "Species seen", value: stats.uniqueSpecies },
-            ].map(item => (
-              <div key={item.label} className="text-center">
-                <p className="text-2xl font-semibold text-foreground">{item.value}</p>
-                <p className="text-[11px] text-muted-foreground">{item.label}</p>
-              </div>
-            ))}
-          </div>
-          {activityCounts.some(c => c > 0) && (
-            <div className="mt-3 border-t border-border pt-3">
-              <p className="mb-1.5 text-[11px] text-muted-foreground">Last {ACTIVITY_WEEKS} weeks</p>
-              <ActivitySparkline counts={activityCounts} />
-            </div>
-          )}
-        </div>
-      )}
-
+      {/* A real memory surfacing across time, not a metric — the one thing
+          in this header worth a beat of visual weight (see Design
+          Manifesto §4, "recognition across time"). No border: a tint is
+          enough to say "this one's different," without becoming a card. */}
       {onThisDay && (
-        <div className="mx-4 mb-4 overflow-hidden rounded-xl border border-primary/30 bg-secondary">
+        <div className="mx-4 mb-5 overflow-hidden rounded-xl bg-secondary">
           <div className="flex items-center gap-1.5 px-4 pt-3 text-xs font-medium text-primary">
             <Sparkles className="h-3.5 w-3.5" />
             On this day, {differenceInYears(new Date(), new Date(onThisDay.capturedAt))} year
@@ -111,19 +83,15 @@ export default function Journal() {
         {dayGroups.map(group => (
           <div key={group.key} className="mb-5">
             <p className="mb-2 font-display text-sm text-muted-foreground">{dayHeaderLabel(group.date)}</p>
-            <div className="space-y-3">
+            <div className="divide-y divide-border">
               {group.items.map(moment => (
                 <button
                   key={moment.id}
                   onClick={() => navigate(`/spot/${moment.spotId}`)}
-                  className="flex w-full items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-accent"
+                  className="flex w-full items-start gap-3 py-3 text-left first:pt-0"
                 >
                   {moment.photoUrls[0] && (
-                    <img
-                      src={moment.photoUrls[0]}
-                      alt=""
-                      className="h-14 w-14 flex-shrink-0 rounded-lg object-cover"
-                    />
+                    <img src={moment.photoUrls[0]} alt="" className="h-14 w-14 flex-shrink-0 rounded-lg object-cover" />
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
@@ -138,13 +106,14 @@ export default function Journal() {
                       <p className="mt-1 line-clamp-2 font-display text-sm text-muted-foreground">{moment.note}</p>
                     )}
                     {moment.sightings.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {moment.sightings.map(s => (
-                          <Badge key={s.id} variant={s.behaviors.length > 0 ? "default" : "outline"}>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {moment.sightings.map((s, i) => (
+                          <span key={s.id}>
+                            {i > 0 && " · "}
                             {formatSighting(s.species, s.behaviors)}
-                          </Badge>
+                          </span>
                         ))}
-                      </div>
+                      </p>
                     )}
                   </div>
                 </button>

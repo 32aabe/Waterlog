@@ -57,6 +57,12 @@ export const WATER_CONDITIONS = [
   { value: "snow_ice_present", label: "Snow/ice present" },
 ] as const;
 
+// `waterCondition` on a moment is free-text in storage (see server/db.ts),
+// same reasoning as getSpotTypeLabel above.
+export function getWaterConditionLabel(waterCondition: string): string {
+  return WATER_CONDITIONS.find(c => c.value === waterCondition)?.label ?? waterCondition.replace(/_/g, " ");
+}
+
 // {value, label} rather than plain strings, same reason as
 // WATER_CONDITIONS above: `value` is what's stored (and stays fixed,
 // English, comparable across app versions); `label` is the only part a
@@ -73,6 +79,23 @@ export const BEHAVIOR_OPTIONS = [
   { value: "Perching", label: "Perching" },
   { value: "Resting", label: "Resting" },
 ] as const;
+
+// Infinitive form of each behavior, for prose that needs "stops to ___"
+// rather than the gerund label used everywhere else (chips, filters) —
+// a fixed, hand-mapped table since BEHAVIOR_OPTIONS is a closed set of
+// seven values, not free text.
+const BEHAVIOR_INFINITIVE: Record<string, string> = {
+  Drinking: "drink",
+  Bathing: "bathe",
+  Foraging: "forage",
+  Wading: "wade",
+  Preening: "preen",
+  Perching: "perch",
+  Resting: "rest",
+};
+export function getBehaviorInfinitive(behavior: string): string {
+  return BEHAVIOR_INFINITIVE[behavior] ?? behavior.toLowerCase();
+}
 
 // A starting point for species suggestions, not an exhaustive taxonomy —
 // common birds likely to turn up at an urban or suburban water spot.
