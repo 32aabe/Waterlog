@@ -33,7 +33,13 @@ export async function describeLocation(lat: number, lng: number): Promise<string
     // A locality ("Brooklyn") still beats a bare coordinate pair.
     const locality = result.results[0].address_components.find(c => c.types.includes("locality"));
     return locality?.long_name ?? null;
-  } catch {
+  } catch (err) {
+    // Logged, not swallowed — the most common cause is exactly the one
+    // named in ./map.ts's own error: BUILT_IN_FORGE_API_URL /
+    // BUILT_IN_FORGE_API_KEY missing from the server environment (see
+    // .env.example). Still resolves to null either way so a slow or
+    // misconfigured lookup never blocks or breaks Capture.
+    console.error("[geocode] describeLocation failed:", err instanceof Error ? err.message : err);
     return null;
   }
 }

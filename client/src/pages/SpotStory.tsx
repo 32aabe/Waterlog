@@ -7,14 +7,8 @@ import { getSpotTypeLabel, getWaterConditionLabel, getBehaviorInfinitive, LIFECY
 import { ArrowLeft, Plus, Droplets, Bird, Waves } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { dayHeaderLabel, groupByDay, shortDateLabel } from "@/lib/dates";
+import { LIFECYCLE_DOT_COLOR } from "@/lib/spotVisual";
 import type { MomentSummary } from "../../../server/db";
-
-const STATE_DOT_COLOR: Record<string, string> = {
-  alive: "bg-chart-2",
-  drying: "bg-amber-600",
-  dry: "bg-muted-foreground/40",
-  reawakened: "bg-primary",
-};
 
 function topByFrequency(items: string[], limit: number): string[] {
   const counts = new Map<string, number>();
@@ -218,7 +212,10 @@ export default function SpotStory() {
           {spot.name || getSpotTypeLabel(spot.spotType)}
         </h1>
         <p className="mt-1.5 text-xs text-muted-foreground">
-          <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${STATE_DOT_COLOR[spot.lifecycleState]}`} />
+          <span
+            className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full"
+            style={{ backgroundColor: LIFECYCLE_DOT_COLOR[spot.lifecycleState] }}
+          />
           {LIFECYCLE_LABELS[spot.lifecycleState]} · Since {shortDateLabel(new Date(spot.firstSeenAt))}
         </p>
       </div>

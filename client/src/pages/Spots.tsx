@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { getSpotTypeLabel, LIFECYCLE_LABELS } from "@/const";
+import { LIFECYCLE_DOT_COLOR } from "@/lib/spotVisual";
 import { Search, MapPinned } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -85,6 +86,10 @@ export default function Spots() {
               </p>
             </div>
             <Badge variant="secondary" className="flex-shrink-0">
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ backgroundColor: LIFECYCLE_DOT_COLOR[spot.lifecycleState] }}
+              />
               {LIFECYCLE_LABELS[spot.lifecycleState]}
             </Badge>
           </button>

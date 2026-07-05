@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { formatDistanceToNow, formatDistanceToNowStrict } from "date-fns";
 import { MapView } from "@/components/Map";
+import { MapFallback } from "@/components/MapFallback";
+import { useGoogleMapsAvailable } from "@/hooks/useGoogleMapsAvailable";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -9,6 +11,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { getLoginUrl } from "@/const";
 import { APP_NAME, APP_TAGLINE, getSpotTypeLabel } from "@/const";
 import { spawnRipple } from "@/lib/ripple";
+import { markColor, markPresence, relationshipDepth, rippleMarkMetrics, PULSING_LIFECYCLE_STATES } from "@/lib/spotVisual";
 import { Plus, Waves } from "lucide-react";
 import type { SpotSummary } from "../../../server/db";
 
@@ -45,39 +48,6 @@ const WATERLOG_MAP_STYLE: google.maps.MapTypeStyle[] = [
 // street through rained-on glass.
 const MAP_SOFTEN_FILTER = "saturate(0.6) contrast(0.94) brightness(1.03) sepia(0.06)";
 
-// A spot's relationship depth: not a score, never shown as a number, and
-// deliberately blended from two slow-moving signals rather than visit
-// count alone (docs/design/01_MAP_SCREEN.md, "the exact algorithm should
-// remain intentionally invisible"). Saturates gently so a handful of
-// visits or a couple of months already reads as "known," rather than
-// requiring dozens before the mark visibly settles.
-function relationshipDepth(spot: SpotSummary): number {
-  const daysKnown = (Date.now() - new Date(spot.firstSeenAt).getTime()) / 86_400_000;
-  const momentDepth = 1 - 1 / (1 + spot.momentCount / 4);
-  const timeDepth = 1 - 1 / (1 + daysKnown / 45);
-  return Math.min(1, (momentDepth + timeDepth) / 2);
-}
-
-// Cool and faint at first (a quiet, barely-there mark), passing through
-// the app's own rich water-blue as the mark "becomes richer," and only
-// settling warm at real depth — color as the accumulation of a
-// relationship, never a status light. color-mix over CSS variables (not
-// hardcoded hex) so this follows the light/dark theme automatically,
-// the same trick already used for --line in index.css.
-function depthColor(depth: number): string {
-  if (depth < 0.5) {
-    const t = Math.round((depth / 0.5) * 100);
-    return `color-mix(in oklab, var(--water-deep) ${t}%, var(--water-soft) ${100 - t}%)`;
-  }
-  const t = Math.round(((depth - 0.5) / 0.5) * 100);
-  return `color-mix(in oklab, var(--warm) ${t}%, var(--water-deep) ${100 - t}%)`;
-}
-
-// Motion is still rationed like warmth: only a spot coming back from dry
-// gets the looping ripple. Depth alone never animates — if everything on
-// the map moved, nothing would feel earned.
-const PULSING_STATES = new Set(["reawakened"]);
-
 // A Spot card describes the place's arc, not its most recent checkup —
 // how long it's been known, how many memories have gathered there, and
 // (for the one moment worth marking) that it just came back. Never
@@ -111,6 +81,10 @@ export default function MapHome() {
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const [mapReady, setMapReady] = useState(false);
+  // null while the maps script is still loading — MapView isn't mounted
+  // and the fallback isn't shown yet either, so a fast, working load
+  // never flashes the fallback landscape first.
+  const mapsAvailable = useGoogleMapsAvailable();
 
   // Resolve the visitor's own location (once, briefly) so the map opens
   // centered on somewhere that means something to them, rather than
@@ -118,7 +92,8 @@ export default function MapHome() {
   // then to the map component's own default, if location isn't available.
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locationSettled, setLocationSettled] = useState(false);
-  useEffect(() => {
+
+  const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setLocationSettled(true);
       return;
@@ -136,7 +111,13 @@ export default function MapHome() {
       },
       { enableHighAccuracy: false, timeout: 3000, maximumAge: 5 * 60 * 1000 },
     );
-    return () => clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
+    requestLocation();
+    // requestLocation is stable (useCallback, empty deps) — this should
+    // only run once on mount, same as before.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleMapReady = useCallback((map: google.maps.Map) => {
@@ -146,7 +127,8 @@ export default function MapHome() {
 
   // Re-plot markers whenever the spot list (or the map itself) changes,
   // rather than only once at map-ready time — spots.list can resolve
-  // after the map finishes loading its script.
+  // after the map finishes loading its script. No-ops entirely when
+  // real map tiles aren't available; MapFallback renders its own marks.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || !spots || !window.google?.maps?.marker) return;
@@ -156,30 +138,16 @@ export default function MapHome() {
 
     spots.forEach(spot => {
       const depth = relationshipDepth(spot);
-      // Reawakening is a warm moment regardless of how young the
-      // relationship is — the color leans toward --warm even for a
-      // shallow spot's first return, so the moment still reads as
-      // tender rather than waiting on accumulated depth to earn it.
-      const color = spot.lifecycleState === "reawakened" ? depthColor(Math.max(depth, 0.85)) : depthColor(depth);
-      // Presence fades like a real dry streambed rather than switching
-      // off — quieter, not hidden (docs/03_DESIGN_MANIFESTO.md §6).
-      const presence = spot.lifecycleState === "dry" ? 0.5 : spot.lifecycleState === "drying" ? 0.78 : 1;
-
-      // A soft watercolor mark rather than a pin: a small solid core
-      // wrapped in a much larger, softer glow that grows and blurs as
-      // the relationship deepens — "the mark becomes richer, edges
-      // become softer," never simply bigger (see 01_MAP_SCREEN.md).
-      const haloSize = Math.round(22 + depth * 16);
-      const coreSize = Math.round(7 + depth * 5);
-      const glowBlur = Math.round(6 + depth * 10);
-      const glowSpread = Math.round(2 + depth * 4);
+      const color = markColor(spot, depth);
+      const presence = markPresence(spot);
+      const { haloSize, coreSize, glowBlur, glowSpread } = rippleMarkMetrics(depth);
 
       const mark = document.createElement("div");
       mark.style.position = "relative";
       mark.style.width = `${haloSize}px`;
       mark.style.height = `${haloSize}px`;
       mark.style.opacity = `${presence}`;
-      if (PULSING_STATES.has(spot.lifecycleState)) {
+      if (PULSING_LIFECYCLE_STATES.has(spot.lifecycleState)) {
         mark.classList.add("map-pulse");
         mark.style.color = color;
       }
@@ -243,9 +211,16 @@ export default function MapHome() {
 
       <div
         className="relative mx-4 mt-2 overflow-hidden rounded-2xl border border-border"
-        style={{ height: "58vh", filter: MAP_SOFTEN_FILTER }}
+        style={{ height: "58vh", filter: mapsAvailable === false ? undefined : MAP_SOFTEN_FILTER }}
       >
-        {locationSettled ? (
+        {mapsAvailable === false ? (
+          <MapFallback
+            spots={spots ?? []}
+            userCoords={userCoords}
+            onSelect={setSelected}
+            onLocate={requestLocation}
+          />
+        ) : locationSettled && mapsAvailable ? (
           <MapView
             className="h-full w-full"
             initialCenter={initialCenter}
@@ -258,7 +233,7 @@ export default function MapHome() {
             <Spinner />
           </div>
         )}
-        {locationSettled && isLoading && (
+        {mapsAvailable && locationSettled && isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/60">
             <Spinner />
           </div>

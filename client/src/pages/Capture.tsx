@@ -11,7 +11,8 @@ import { distanceMeters } from "@/lib/geo";
 import { toast } from "sonner";
 import { getLoginUrl, SPOT_TYPE_LABELS, getSpotTypeLabel, WATER_CONDITIONS, BEHAVIOR_OPTIONS, COMMON_SPECIES, type SpotType } from "@/const";
 import { spawnRipple } from "@/lib/ripple";
-import { fetchAmbientWeather, formatDatelineTime, type AmbientWeather } from "@/lib/weather";
+import { fetchAmbientWeather, type AmbientWeather } from "@/lib/weather";
+import { formatClockTime } from "@/lib/dates";
 import { ArrowLeft, Camera, Plus, X, ChevronDown, Mic, Square } from "lucide-react";
 
 function blobToDataUrl(blob: Blob): Promise<string> {
@@ -110,17 +111,15 @@ export default function Capture() {
   const [showDetails, setShowDetails] = useState(false);
   const [sightings, setSightings] = useState<SightingDraft[]>([{ species: "", behaviors: [] }]);
   const [saved, setSaved] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Ambient context for the dateline — filled in quietly, never asked
-  // for, never blocking Save. See client/src/lib/weather.ts.
+  // Ambient context for the Auto Context block — filled in quietly, never
+  // asked for, never blocking Save. See client/src/lib/weather.ts.
   const [weather, setWeather] = useState<AmbientWeather | null>(null);
-  const datelineTime = useMemo(() => formatDatelineTime(new Date()), []);
+  const timeText = useMemo(() => formatClockTime(new Date()), []);
   const rippleOriginRef = useRef<HTMLDivElement>(null);
-  // The nearby-spot picker only needs to be shown by default in the
-  // genuinely ambiguous case; a confident auto-match instead gets a
-  // quiet recognition line, with the picker one tap away if it's wrong.
-  const [showPicker, setShowPicker] = useState(false);
 
   // Voice note: an alternative, faster-than-typing way to fill the note
   // field, not a separate stored asset — see server/routers.ts.
@@ -130,18 +129,74 @@ export default function Capture() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
+  // Whether the location attempt has concluded — success, failure, or
+  // gave-up — as distinct from whether it actually produced coordinates.
+  // Previously `locating`/`canSubmit` were derived from `!coords` alone,
+  // which meant a denied/unsupported/never-called-back geolocation
+  // request left Save permanently disabled with a permanent spinner:
+  // opening Capture from the home + button (no spotId, so this effect
+  // runs) could hang forever in exactly that way, while opening it from
+  // a Spot's "Log a moment" (spotId already known) never depended on
+  // geolocation at all — which is why only one entry path got stuck. The
+  // independent timeout below guarantees this settles even if the
+  // browser never invokes either geolocation callback at all (seen in
+  // some insecure-context / permission-blocked previews), the same
+  // pattern already used in MapHome's own geolocation effect.
+  // Diagnostic, not just cosmetic: when geolocation fails, this captures
+  // *why* (permission denied vs. no hardware/OS location vs. timeout)
+  // instead of collapsing every cause into a silent "not available" —
+  // both logged to the console and surfaced in the Auto Context Location
+  // row below, since a machine with location services disabled at the OS
+  // level (common on Windows/desktop) reports PERMISSION_DENIED or
+  // POSITION_UNAVAILABLE from the browser even when site-level permission
+  // was granted.
+  const [geoSettled, setGeoSettled] = useState(false);
+  const [geoErrorReason, setGeoErrorReason] = useState<string | null>(null);
   useEffect(() => {
-    if (!urlSpotId && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        pos => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => setCoords(null),
-        GEOLOCATION_OPTIONS,
-      );
+    if (urlSpotId) {
+      setGeoSettled(true);
+      return;
     }
+    if (!navigator.geolocation) {
+      console.error("[Capture] navigator.geolocation is unavailable — unsupported browser, or a non-secure context (must be https, or localhost).");
+      setGeoErrorReason("location not supported here");
+      setGeoSettled(true);
+      return;
+    }
+    const timeout = setTimeout(() => {
+      console.error(
+        "[Capture] geolocation never called back within 8.5s — the browser neither returned a position nor an error. Often caused by an insecure context (http, not https/localhost) or the request silently hanging.",
+      );
+      setGeoErrorReason("location request timed out");
+      setGeoSettled(true);
+    }, 8500);
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGeoSettled(true);
+        clearTimeout(timeout);
+      },
+      err => {
+        const reason =
+          err.code === err.PERMISSION_DENIED
+            ? "location permission denied"
+            : err.code === err.POSITION_UNAVAILABLE
+              ? "location unavailable — check that OS-level location services are turned on"
+              : "location request timed out";
+        console.error(`[Capture] geolocation failed (code ${err.code} ${err.message ? `— ${err.message}` : ""}).`);
+        setGeoErrorReason(reason);
+        setGeoSettled(true);
+        clearTimeout(timeout);
+      },
+      GEOLOCATION_OPTIONS,
+    );
+    return () => clearTimeout(timeout);
   }, [urlSpotId]);
 
-  // Weather arrives quietly once coordinates do — never gates Save, and
-  // simply leaves its clause out of the dateline if it's slow or fails.
+  // Weather arrives quietly once coordinates do — never gates Save. On
+  // failure, client/src/lib/weather.ts already logs the specific cause
+  // (network error, bad response, etc.) to the console; this just leaves
+  // its clause out of Auto Context rather than blocking anything.
   useEffect(() => {
     if (!coords) return;
     let cancelled = false;
@@ -153,11 +208,13 @@ export default function Capture() {
     };
   }, [coords]);
 
-  // A short place phrase for the dateline, and — if this turns out to be
+  // A short place phrase for Auto Context, and — if this turns out to be
   // a new spot — its placeName. Fetched speculatively whenever there's no
   // spot already resolved; harmless to fetch even if the user ends up
-  // picking a nearby existing spot instead.
-  const { data: placeText } = trpc.spots.describeLocation.useQuery(
+  // picking a nearby existing spot instead. Resolves to null (not an
+  // error) when reverse geocoding isn't configured server-side — see
+  // server/_core/geocode.ts, which logs the specific reason there.
+  const { data: placeText, isLoading: placeTextLoading } = trpc.spots.describeLocation.useQuery(
     { latitude: coords?.lat ?? 0, longitude: coords?.lng ?? 0 },
     { enabled: !!coords && !urlSpotId },
   );
@@ -211,9 +268,13 @@ export default function Capture() {
   const uploadMedia = trpc.moments.uploadMedia.useMutation();
   const transcribeVoice = trpc.moments.transcribeVoice.useMutation();
 
-  const busy = createSpot.isPending || createMoment.isPending || uploadMedia.isPending;
-  const locating = !targetSpotId && !coords;
-  const canSubmit = targetSpotId ? true : !!coords;
+  const busy = isSubmitting || createSpot.isPending || createMoment.isPending || uploadMedia.isPending;
+  const locating = !targetSpotId && !geoSettled;
+  // Once geolocation has settled — whether it produced coordinates or
+  // not — Save unlocks. A failed/denied/unsupported location must never
+  // leave the user stuck; handleSubmit below falls back to an existing
+  // spot's coordinates if a fresh GPS fix never arrived.
+  const canSubmit = targetSpotId ? true : geoSettled;
   // null in local dev / mobile-LAN preview, where OAuth isn't configured —
   // the whole capture flow (photo, water interaction, everything) still
   // works up to Save, which then explains sign-in isn't available here
@@ -282,6 +343,8 @@ export default function Capture() {
   };
 
   const handleSubmit = async () => {
+    setSubmitError(null);
+    setIsSubmitting(true);
     try {
       // Captured before the mutation so it reflects the spot's state
       // going into this save, for the reawakening check below.
@@ -289,16 +352,32 @@ export default function Capture() {
       let resolvedSpotId = targetSpotId;
 
       if (!resolvedSpotId) {
-        if (!coords) return;
+        // A fresh GPS fix may never have arrived (denied, unsupported, or
+        // just slow) even though geolocation has "settled" — fall back to
+        // an existing spot's coordinates rather than blocking the save
+        // entirely. Only a brand-new account with zero spots and no GPS
+        // at all has genuinely nothing to fall back to.
+        const fallbackCoords =
+          coords ??
+          (nearbySpotsData && nearbySpotsData.length > 0
+            ? { lat: Number(nearbySpotsData[0].latitude), lng: Number(nearbySpotsData[0].longitude) }
+            : null);
+        if (!fallbackCoords) {
+          setSubmitError("Couldn't determine a location for this. Try again, or open Capture from an existing spot.");
+          return;
+        }
         const spot = await createSpot.mutateAsync({
-          latitude: coords.lat,
-          longitude: coords.lng,
+          latitude: fallbackCoords.lat,
+          longitude: fallbackCoords.lng,
           spotType,
           placeName: placeText ?? undefined,
         });
         resolvedSpotId = spot?.id;
       }
-      if (!resolvedSpotId) return;
+      if (!resolvedSpotId) {
+        setSubmitError("Couldn't save that moment. Try again.");
+        return;
+      }
 
       const photoUrls = await Promise.all(
         photos.map(async (p, i) => {
@@ -327,7 +406,7 @@ export default function Capture() {
         photoUrls: photoUrls.length > 0 ? photoUrls : undefined,
         waterCondition,
         sightings: sightingsPayload.length > 0 ? sightingsPayload : undefined,
-        weather: weather ? `${weather.condition ? `${weather.condition}, ` : ""}${weather.tempF}°F` : undefined,
+        weather: weather ? `${weather.condition ? `${weather.condition}, ` : ""}${weather.tempC}°C` : undefined,
       });
 
       await utils.spots.list.invalidate();
@@ -352,24 +431,34 @@ export default function Capture() {
       setTimeout(() => navigate(`/spot/${resolvedSpotId}`), 700);
     } catch (err) {
       console.error("[Capture] failed to save moment:", err);
+      setSubmitError("Couldn't save that moment. Check your connection and try again.");
+    } finally {
+      // Always releases the button, whether the save succeeded, failed,
+      // or hit one of the early returns above — the submit state can
+      // never outlive this function's own execution.
+      setIsSubmitting(false);
     }
   };
 
-  // The dateline: time is instant, place and weather arrive a beat later
-  // over the network and simply join the sentence when they're ready —
-  // nothing here ever gates Save. Before location resolves at all, it
-  // reads as the app quietly getting its bearings rather than a stalled
-  // "Locating…" status. Place is only worth naming for a spot that isn't
-  // already known (an existing spot's own name already does that job).
-  // Weather trails last, deliberately — Waterlog is about water, not
-  // weather; the sky is incidental context, never the thing that
-  // outranks the water itself (see the Water section below, which is
-  // sized to actually carry that weight).
-  const datelineText = !coords
-    ? "Remembering where you are…"
-    : [datelineTime, !targetSpotId && placeText ? `near ${placeText}` : null, weather ? `${weather.condition ? `${weather.condition}, ` : ""}${weather.tempF}°F` : null]
-        .filter(Boolean)
-        .join(" · ");
+  // Auto Context: quiet, always-visible ambient info, never gating Save.
+  // Location reflects whatever place this moment is actually headed for —
+  // an already-known spot (via urlSpotId, or a nearby match/pick) always
+  // wins over a bare place phrase, since at that point the moment really
+  // is going to that spot. The two "not available" branches are
+  // deliberately distinct: one means geolocation itself never produced
+  // coordinates (see geoErrorReason above for why), the other means
+  // coordinates exist but reverse geocoding didn't resolve a name for
+  // them (e.g. server/_core/geocode.ts's Forge Maps credentials aren't
+  // configured — see its console output for the specific cause).
+  const locationText = (() => {
+    if (!geoSettled) return "detecting…";
+    if (targetSpotId) return existingSpot ? existingSpot.spot.name || getSpotTypeLabel(existingSpot.spot.spotType) : "detecting…";
+    if (placeText) return `near ${placeText}`;
+    if (coords) return placeTextLoading ? "detecting…" : "not available — place lookup unavailable";
+    return geoErrorReason ? `not available — ${geoErrorReason}` : "not available";
+  })();
+  const weatherText = weather?.condition ? weather.condition.toLowerCase() : "not available";
+  const temperatureText = weather ? `${weather.tempC}°C` : "not available";
 
   return (
     <div className="settle-in min-h-[100dvh] pb-40">
@@ -378,7 +467,15 @@ export default function Capture() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
-      <p className="font-display px-4 pb-3 text-[15px] italic text-muted-foreground">{datelineText}</p>
+      <div className="px-4 pb-3">
+        <p className="text-xs font-medium text-muted-foreground">Auto context</p>
+        <div className="mt-1 space-y-0.5">
+          <p className="text-xs text-muted-foreground">Location · {locationText}</p>
+          <p className="text-xs text-muted-foreground">Weather · {weatherText}</p>
+          <p className="text-xs text-muted-foreground">Temperature · {temperatureText}</p>
+          <p className="text-xs text-muted-foreground">Time · {timeText}</p>
+        </div>
+      </div>
 
       <div className="mx-4 space-y-4">
         {/* Photo — the primary, fastest input. Tapping it is the one
@@ -434,49 +531,42 @@ export default function Capture() {
           }}
         />
 
-        {/* Nearby spots. A confident auto-match (≤25m) reads as quiet
-            recognition of somewhere already on the user's map, not a
-            decision to make — the picker only surfaces if they say it's
-            wrong. The genuinely ambiguous case (25–120m, no confident
-            match) keeps the equal-weight picker, since that's a real
-            choice. Neither renders at all for the common "nothing nearby"
-            case, which looks exactly like it always has. */}
+        {/* Suggested place. A confident auto-match (≤25m) is pre-selected
+            by default — Save already targets it without requiring a tap —
+            since the two-tier confidence system exists precisely so this
+            case can be treated differently from the genuinely ambiguous
+            one below. The two buttons are an explicit, equally visible
+            confirm/override, replacing what used to be a quiet "Not this
+            one?" link. Doesn't render at all for the common "nothing
+            nearby" case. */}
         {!urlSpotId && autoMatch && (
           <div>
-            <p className="font-display text-[15px] text-foreground">
-              You're back at <span className="font-medium">{autoMatch.name || getSpotTypeLabel(autoMatch.spotType)}</span>.
+            <p className="text-xs font-medium text-muted-foreground">Suggested place</p>
+            <p className="mt-0.5 font-display text-[15px] text-foreground">
+              {autoMatch.name || getSpotTypeLabel(autoMatch.spotType)}
             </p>
-            {!showPicker ? (
-              <button type="button" onClick={() => setShowPicker(true)} className="mt-1 text-xs text-muted-foreground underline underline-offset-2">
-                Not this one?
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPickedNearby(autoMatch.id)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-xs font-medium",
+                  pickedNearby === autoMatch.id ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                )}
+              >
+                Use this place
               </button>
-            ) : (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {nearby.map(s => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => setPickedNearby(s.id)}
-                    className={cn(
-                      "rounded-full border px-3 py-1 text-xs",
-                      pickedNearby === s.id ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
-                    )}
-                  >
-                    {s.name || getSpotTypeLabel(s.spotType)} · {Math.round(s.distanceM)}m
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setPickedNearby("new")}
-                  className={cn(
-                    "rounded-full border px-3 py-1 text-xs",
-                    pickedNearby === "new" ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
-                  )}
-                >
-                  New spot
-                </button>
-              </div>
-            )}
+              <button
+                type="button"
+                onClick={() => setPickedNearby("new")}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-xs font-medium",
+                  pickedNearby === "new" ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                )}
+              >
+                Record as a new place
+              </button>
+            </div>
           </div>
         )}
         {!urlSpotId && !autoMatch && nearby.length > 0 && (
@@ -740,6 +830,7 @@ export default function Capture() {
               : "OAuth isn't configured in this preview — saving needs a signed-in session."}
           </p>
         )}
+        {submitError && <p className="mt-2 text-center text-xs text-destructive">{submitError}</p>}
       </div>
     </div>
   );

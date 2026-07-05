@@ -1,10 +1,10 @@
-// Quiet, keyless ambient weather for the Capture dateline. Open-Meteo's
-// public API needs no API key and allows direct browser calls — no server
-// round trip, nothing to provision. Best-effort only: any failure
-// (offline, blocked, slow) simply leaves the weather clause out of the
-// dateline rather than blocking or erroring the capture flow it's
-// enriching. See docs/03_DESIGN_MANIFESTO.md §6 — weather is ambient
-// texture here, never a field the user fills in.
+// Quiet, keyless ambient weather for Capture's Auto Context block.
+// Open-Meteo's public API needs no API key and allows direct browser
+// calls — no server round trip, nothing to provision. Best-effort only:
+// any failure (offline, blocked, slow) simply shows "not available"
+// rather than blocking or erroring the capture flow it's enriching. See
+// docs/03_DESIGN_MANIFESTO.md §6 — weather is ambient texture here,
+// never a field the user fills in.
 const WMO_CONDITIONS: Record<number, string> = {
   0: "Clear",
   1: "Mostly clear",
@@ -36,29 +36,29 @@ const WMO_CONDITIONS: Record<number, string> = {
   99: "Thunderstorms",
 };
 
-export type AmbientWeather = { tempF: number; condition: string };
+// Celsius throughout — Open-Meteo's own default unit, so no conversion
+// needed. A user-facing °C/°F preference can be added once Profile/
+// Settings exists; not this pass.
+export type AmbientWeather = { tempC: number; condition: string };
 
 export async function fetchAmbientWeather(lat: number, lng: number): Promise<AmbientWeather | null> {
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code`;
     const res = await fetch(url);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[weather] Open-Meteo request failed: ${res.status} ${res.statusText}`);
+      return null;
+    }
     const data = await res.json();
-    const tempF = data?.current?.temperature_2m;
-    if (typeof tempF !== "number") return null;
+    const tempC = data?.current?.temperature_2m;
+    if (typeof tempC !== "number") {
+      console.warn("[weather] Open-Meteo response had no current.temperature_2m — unexpected response shape:", data);
+      return null;
+    }
     const code = data?.current?.weather_code;
-    return { tempF: Math.round(tempF), condition: WMO_CONDITIONS[code] ?? "" };
-  } catch {
+    return { tempC: Math.round(tempC), condition: WMO_CONDITIONS[code] ?? "" };
+  } catch (err) {
+    console.warn("[weather] fetchAmbientWeather failed (offline, blocked, or network error):", err);
     return null;
   }
-}
-
-// "Tuesday afternoon" — the dateline's time clause, resolved instantly and
-// client-side, no network needed.
-const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-export function formatDatelineTime(date: Date): string {
-  const hour = date.getHours();
-  const part = hour < 5 ? "night" : hour < 12 ? "morning" : hour < 17 ? "afternoon" : hour < 21 ? "evening" : "night";
-  return `${WEEKDAYS[date.getDay()]} ${part}`;
 }

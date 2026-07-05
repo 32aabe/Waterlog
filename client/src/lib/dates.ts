@@ -24,6 +24,11 @@ export function shortDateLabel(date: Date): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+/** "4:20 PM" — a literal clock time for Capture's Auto Context block. Always en-US, same reasoning as the other formatters in this file. */
+export function formatClockTime(date: Date): string {
+  return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
 /** Groups already newest-first items into day buckets, preserving order. */
 export function groupByDay<T extends { capturedAt: string | Date }>(
   items: T[],

@@ -92,7 +92,7 @@ const FORGE_BASE_URL =
   "https://forge.butterfly-effect.dev";
 const MAPS_PROXY_URL = `${FORGE_BASE_URL}/v1/maps/proxy`;
 
-function loadMapScript(): Promise<void> {
+export function loadMapScript(): Promise<void> {
   return new Promise(resolve => {
     if (!API_KEY) {
       // No Forge Maps key configured — the common case for a bare local
