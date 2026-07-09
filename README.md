@@ -125,9 +125,14 @@ Waterlog runs as a complete, working demo:
   Spots, and Profile all read from it transparently; every read/derive
   function (lifecycle state, moment grouping, stats) is a pure function
   over already-fetched rows, so it runs identically whether those rows
-  came from MySQL or memory. **Data resets whenever the dev server
-  restarts** — deliberate, not a bug; this exists to unblock demoing, not
-  to be a real persistence layer.
+  came from MySQL or memory. **Data now survives a dev-server restart**
+  — every mutation is also written through to a local, gitignored
+  `.local-data/store.json`, loaded back on boot. Delete that file (or
+  call `memoryStore.reset()`) to start completely fresh. Still not a real
+  persistence layer — one JSON file, no migrations, no concurrent-writer
+  safety — just enough to survive `tsx watch` restarting the process on
+  every server-file save, which used to silently erase anything captured
+  during a session.
 - **Photos/voice notes**: `server/storage.ts` hands the captured
   media back as a `data:` URL instead of throwing when Forge/S3 isn't
   configured (same gating) — so a photo-first capture, the app's primary
@@ -141,6 +146,38 @@ no `.env` throws on every data call and `auth.me` returns `null`.
 
 One known limitation: "sign out" in Profile is a no-op locally (there's
 no real session to sign out of, since Local Dev Admin isn't cookie-based).
+
+**Exception: `WATERLOG_DEMO_MODE=true`** opts a production deployment
+back into the same zero-dependency behavior described above — in-memory
+store, auto-seeded spots, Local Dev Admin auto-login, `data:` URL photos
+— instead of requiring a real database/OAuth. Built for sharing a public,
+throwaway demo link (e.g. on Railway) without provisioning real
+infrastructure first. See "Deploying a public demo" below. Leaving it
+unset (the default) keeps the real-DB/real-OAuth requirement exactly as
+described above — this only ever widens what production allows, never
+removes the real requirement.
+
+## Deploying a public demo (Railway)
+
+To deploy a shareable demo link without a real database or OAuth app,
+set these environment variables in Railway:
+
+| Variable | Value |
+| --- | --- |
+| `NODE_ENV` | `production` |
+| `WATERLOG_DEMO_MODE` | `true` |
+| `VITE_GOOGLE_MAPS_API_KEY` | your Maps JS API key, HTTP-referrer-restricted to the Railway domain |
+
+Leave `DATABASE_URL` and `OAUTH_SERVER_URL` unset. Build/start commands
+are the existing `pnpm build` / `pnpm start` (`server/_core/index.ts`
+already reads `PORT` from the environment and binds to all interfaces, so
+no extra config is needed there).
+
+Data (spots/moments/photos) lives in the container's in-memory store —
+seeded automatically on first boot, same as local dev — and does **not**
+survive a redeploy or restart; that's expected for a demo link, not a
+bug. For a persistent public demo, provision a real `DATABASE_URL`
+instead and leave `WATERLOG_DEMO_MODE` unset.
 
 ## Getting started
 

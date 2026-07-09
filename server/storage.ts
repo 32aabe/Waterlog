@@ -40,12 +40,13 @@ export async function storagePut(
 ): Promise<{ key: string; url: string }> {
   const key = appendHashSuffix(normalizeKey(relKey));
 
-  if ((!ENV.forgeApiUrl || !ENV.forgeApiKey) && !ENV.isProduction) {
-    // Local dev without Forge/S3 configured: hand the data straight back
-    // as a data: URL instead of throwing — photos and voice notes still
-    // work end to end for a local demo. Fine for the small, ephemeral
-    // media a demo session captures; never runs in production, which
-    // still requires real Forge credentials (getForgeConfig below).
+  if ((!ENV.forgeApiUrl || !ENV.forgeApiKey) && (!ENV.isProduction || ENV.demoMode)) {
+    // Local dev without Forge/S3 configured, or a WATERLOG_DEMO_MODE=true
+    // deployment without it: hand the data straight back as a data: URL
+    // instead of throwing — photos and voice notes still work end to end
+    // (Capture -> Spot). Fine for the small, ephemeral media a demo
+    // session captures; a real (non-demo) production deployment still
+    // requires real Forge credentials (getForgeConfig below).
     return { key, url: `data:${contentType};base64,${toBase64(data)}` };
   }
 

@@ -39,14 +39,17 @@ export const appRouter = router({
     }),
   }),
 
-  // Water spots are browsable without signing in — the map is the front
-  // door, and login is deferred until someone wants to log a moment.
+  // The map/spot screens are browsable without signing in — login is
+  // deferred until someone wants to log a moment — but a Spot is always
+  // one user's private record of a place (see listSpots/getSpotDetail in
+  // server/db.ts), so signed-out visitors simply see nothing yet, the
+  // same way a diary is empty until you start writing in it.
   spots: router({
-    list: publicProcedure.query(() => db.listSpots()),
+    list: publicProcedure.query(({ ctx }) => (ctx.user ? db.listSpots(ctx.user.id) : [])),
 
     getById: publicProcedure
       .input(z.object({ id: z.number() }))
-      .query(({ input }) => db.getSpotDetail(input.id)),
+      .query(({ ctx, input }) => (ctx.user ? db.getSpotDetail(input.id, ctx.user.id) : null)),
 
     // Quietly turns coordinates into a short place phrase for Capture's
     // dateline — "near Fulton Fountain" instead of a raw lat/lng — and,
@@ -72,6 +75,16 @@ export const appRouter = router({
           ...input,
         }),
       ),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const deleted = await db.deleteSpot(input.id, ctx.user.id);
+        if (!deleted) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Spot not found" });
+        }
+        return { success: true } as const;
+      }),
   }),
 
   moments: router({

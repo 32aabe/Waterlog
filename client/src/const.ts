@@ -55,6 +55,7 @@ export const WATER_CONDITIONS = [
   { value: "frozen", label: "Frozen" },
   { value: "partially_frozen", label: "Partially frozen" },
   { value: "snow_ice_present", label: "Snow/ice present" },
+  { value: "other", label: "Other" },
 ] as const;
 
 // `waterCondition` on a moment is free-text in storage (see server/db.ts),
@@ -66,32 +67,37 @@ export function getWaterConditionLabel(waterCondition: string): string {
 // {value, label} rather than plain strings, same reason as
 // WATER_CONDITIONS above: `value` is what's stored (and stays fixed,
 // English, comparable across app versions); `label` is the only part a
-// future Korean UI would swap. Includes both "Resting" and "Perching" —
-// Ver.2 treated them as distinct behaviors (grounded vs. perched), so
-// keeping both preserves data consistency rather than guessing which one
-// a past entry meant.
+// future Korean UI would swap. The AIR Demo default set, matching
+// docs/design/00_DEMO_IMPLEMENTATION_BRIEF.md's own example list —
+// simpler than Ver.2's set (which also had Wading/Preening/Perching).
+// Those more specialized behaviors aren't gone from the data model
+// (behaviors are free text in storage, see server/db.ts), just no
+// longer offered as default quick-tap chips; a future contextual
+// behavior library can reintroduce them for whoever wants more
+// precision than this default set offers.
 export const BEHAVIOR_OPTIONS = [
   { value: "Drinking", label: "Drinking" },
   { value: "Bathing", label: "Bathing" },
+  { value: "Swimming", label: "Swimming" },
   { value: "Foraging", label: "Foraging" },
-  { value: "Wading", label: "Wading" },
-  { value: "Preening", label: "Preening" },
-  { value: "Perching", label: "Perching" },
   { value: "Resting", label: "Resting" },
+  { value: "Flying", label: "Flying" },
+  { value: "Other", label: "Other" },
 ] as const;
 
 // Infinitive form of each behavior, for prose that needs "stops to ___"
 // rather than the gerund label used everywhere else (chips, filters) —
-// a fixed, hand-mapped table since BEHAVIOR_OPTIONS is a closed set of
-// seven values, not free text.
+// a fixed, hand-mapped table. "Other" deliberately has no entry: it's
+// filtered out before being picked as a Spot's headline behavior (see
+// SpotStory.tsx's placeCharacterSentence) rather than ever appearing in
+// that sentence, so "stops to other" can never be generated.
 const BEHAVIOR_INFINITIVE: Record<string, string> = {
   Drinking: "drink",
   Bathing: "bathe",
+  Swimming: "swim",
   Foraging: "forage",
-  Wading: "wade",
-  Preening: "preen",
-  Perching: "perch",
   Resting: "rest",
+  Flying: "fly",
 };
 export function getBehaviorInfinitive(behavior: string): string {
   return BEHAVIOR_INFINITIVE[behavior] ?? behavior.toLowerCase();

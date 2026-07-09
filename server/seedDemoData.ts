@@ -3,13 +3,19 @@ import { getOrCreateLocalDevUser } from "./_core/context";
 import * as db from "./db";
 
 /**
- * Local-demo-only seed data — populates a handful of varied water spots,
+ * Local-demo seed data — populates a handful of varied water spots,
  * moments, sightings, and placeholder photos so the app can be looked at
- * with real volume instead of an empty state. Dev-only by construction:
- * server/_core/index.ts only mounts the route that calls this when
- * !ENV.isProduction, and this function itself refuses to run in
- * production as a second guard. Safe to call more than once — it just
- * adds another batch of the same spots/moments.
+ * with real volume instead of an empty state. Runs only outside real
+ * production: in plain local dev, or in a WATERLOG_DEMO_MODE=true
+ * deployment (see ENV.demoMode in _core/env.ts) — never in a real
+ * (non-demo) production deployment. server/_core/index.ts's
+ * autoSeedDemoDataIfEmpty() is what actually calls this for a demo
+ * deployment (once, at boot, only if there's nothing seeded yet); the
+ * manual /api/dev/seed-demo-data route stays blocked in all production
+ * deployments, demo mode included, since it's an unauthenticated public
+ * mutation and auto-seed-if-empty already covers "keep demo spots
+ * available." Safe to call more than once regardless — it just adds
+ * another batch of the same spots/moments.
  */
 
 function daysAgo(days: number, hours = 0): Date {
@@ -28,7 +34,7 @@ function placeholderPhoto(hue: number, label: string): string {
 }
 
 export async function seedDemoData(): Promise<{ spots: number; moments: number }> {
-  if (ENV.isProduction) {
+  if (ENV.isProduction && !ENV.demoMode) {
     throw new Error("Demo seeding is not available in production");
   }
 
@@ -108,7 +114,8 @@ export async function seedDemoData(): Promise<{ spots: number; moments: number }
     });
   }
 
-  // --- Spot 3: a pond that dried up (lifecycle: "dry") ---
+  // --- Spot 3: a pond that dried up (lifecycle: "dry") — two moments so
+  // the Story shows a real before/after arc, not a single data point.
   const pond = await db.createSpot({
     creatorId: user.id,
     name: "Pond behind the library",
@@ -118,6 +125,16 @@ export async function seedDemoData(): Promise<{ spots: number; moments: number }
     createdAt: daysAgo(60),
   });
   if (pond) {
+    await createMoment({
+      spotId: pond.id,
+      userId: user.id,
+      waterCondition: "full",
+      note: "Full and calm — a heron was working the edge of it.",
+      sightings: [{ species: "Great Blue Heron", behaviors: ["Wading"] }],
+      photoUrls: [placeholderPhoto(195, "Pond")],
+      weather: "Clear",
+      capturedAt: daysAgo(30),
+    });
     await createMoment({
       spotId: pond.id,
       userId: user.id,
@@ -178,6 +195,28 @@ export async function seedDemoData(): Promise<{ spots: number; moments: number }
     });
   }
 
-  const spots = [puddle, fountain, pond, drainage, container].filter(Boolean).length;
+  // --- Spot 6: a rain barrel slowing down (lifecycle: "drying") — the
+  // one lifecycle state none of the spots above demonstrate: a last
+  // check over a week ago, water still present but not yet "dry". ---
+  const rainBarrel = await db.createSpot({
+    creatorId: user.id,
+    name: "Rain barrel behind the shed",
+    latitude: 37.7744,
+    longitude: -122.4188,
+    spotType: "container",
+    createdAt: daysAgo(20),
+  });
+  if (rainBarrel) {
+    await createMoment({
+      spotId: rainBarrel.id,
+      userId: user.id,
+      waterCondition: "receding",
+      note: "Water's dropped a lot since I last checked — hasn't rained in a while.",
+      weather: "Clear",
+      capturedAt: daysAgo(10),
+    });
+  }
+
+  const spots = [puddle, fountain, pond, drainage, container, rainBarrel].filter(Boolean).length;
   return { spots, moments: momentCount };
 }

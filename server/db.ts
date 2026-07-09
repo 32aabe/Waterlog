@@ -25,16 +25,18 @@ type DataSource = { mode: "sql"; db: Db } | { mode: "memory" };
 
 /**
  * Picks the real MySQL backend when DATABASE_URL is configured; falls
- * back to the in-memory store (server/memoryStore.ts) only when NOT in
- * production — so a bare local checkout or phone-LAN preview still works
- * for Capture/Map/Journal/Spots/Profile, while a real deployment missing
+ * back to the in-memory store (server/memoryStore.ts) when NOT in
+ * production, or when in production under WATERLOG_DEMO_MODE=true (see
+ * ENV.demoMode in _core/env.ts) — so a bare local checkout, phone-LAN
+ * preview, or a public demo deployment all work for Capture/Map/Journal/
+ * Spots/Profile, while a real (non-demo) production deployment missing
  * DATABASE_URL still fails loudly instead of silently demoing on fake
  * data. This is the one gate every data function below goes through.
  */
 async function resolveDataSource(): Promise<DataSource> {
   const db = await getDb();
   if (db) return { mode: "sql", db };
-  if (ENV.isProduction) {
+  if (ENV.isProduction && !ENV.demoMode) {
     throw new Error("Database not available");
   }
   return { mode: "memory" };
@@ -60,7 +62,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 
   const db = await getDb();
   if (!db) {
-    if (!ENV.isProduction) {
+    if (!ENV.isProduction || ENV.demoMode) {
       await memoryStore.upsertUser(user);
       return;
     }
@@ -119,7 +121,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) {
-    if (!ENV.isProduction) {
+    if (!ENV.isProduction || ENV.demoMode) {
       return memoryStore.getUserByOpenId(openId);
     }
     console.warn("[Database] Cannot get user: database not available");
@@ -145,9 +147,10 @@ export async function getUserByOpenId(openId: string) {
 // rather than stored.
 //
 // Everything below is backend-agnostic by construction: groupObservations-
-// IntoMoments, computeLifecycle, and toSpotSummary are pure functions over
-// already-fetched rows, so the same logic runs whether those rows came
-// from MySQL or the in-memory store (see resolveDataSource above).
+// IntoMoments, computeLifecycle, deriveSpotWaterState, and toSpotSummary
+// are pure functions over already-fetched rows, so the same logic runs
+// whether those rows came from MySQL or the in-memory store (see
+// resolveDataSource above).
 // ---------------------------------------------------------------------------
 
 export const UNIDENTIFIED_SPECIES = "Unidentified bird";
@@ -169,6 +172,12 @@ const MOMENT_GROUP_KEY_LENGTH = 10;
 
 export type LifecycleState = "alive" | "drying" | "dry" | "reawakened";
 
+// A Spot's ecological water state — the single source of truth for every
+// place a Spot's color is rendered (map marker, Spot page, illustration).
+// Never derive a color from lifecycleState or waterCondition directly
+// anywhere else; call deriveSpotWaterState (below) and key off this instead.
+export type WaterState = "alive" | "flowing" | "full" | "shallow" | "after_rain" | "dry" | "frozen" | "unknown";
+
 export type SpotSummary = {
   id: number;
   creatorId: number;
@@ -178,12 +187,65 @@ export type SpotSummary = {
   placeName: string | null;
   spotType: string;
   lifecycleState: LifecycleState;
+  waterState: WaterState;
   firstSeenAt: Date;
   lastActivityAt: Date;
   /** Every moment ever logged at this spot — a Spot is a place where time
    *  gathers, so this is a true lifetime total, not a recent-activity hint. */
   momentCount: number;
 };
+
+// spotType is free text (see waterResourceType on the locations row) — this
+// recognizes any of the common flowing-water place names, not just the
+// "drainage" option Capture's own chips currently offer, so a spot typed
+// with a custom name still gets read correctly.
+const FLOWING_SPOT_TYPES = new Set(["stream", "creek", "drainage", "river", "canal"]);
+
+/**
+ * The one place a Spot's water state is decided — every caller (map
+ * markers, the Spot page, a future illustration, any other UI) must use
+ * this, not read lifecycleState or waterCondition on its own. Priority:
+ *
+ * 1. lifecycleState "dry"        -> dry
+ * 2. lifecycleState "reawakened" -> after_rain
+ * 3. latest waterCondition frozen/partially_frozen/snow_ice_present -> frozen
+ * 4. latest waterCondition "full" at a flowing-capable spot type -> flowing
+ *    (a stream/creek/drainage/river/canal reporting "full" reads as
+ *    actively flowing; the same reading elsewhere just reads as full)
+ * 5. latest waterCondition "full" (any other spot type) -> full
+ * 6. latest waterCondition receding/puddle_only -> shallow (never flowing,
+ *    regardless of spot type — a receding or puddle-only reading means
+ *    water is diminishing/isolated, not moving)
+ * 7. no usable reading (no moments yet, or an unrecognized value) and
+ *    lifecycleState "alive" -> alive
+ * 8. otherwise -> unknown
+ */
+export function deriveSpotWaterState(input: {
+  lifecycleState: LifecycleState;
+  spotType: string;
+  latestWaterCondition: string | null;
+}): WaterState {
+  const { lifecycleState, spotType, latestWaterCondition } = input;
+
+  if (lifecycleState === "dry") return "dry";
+  if (lifecycleState === "reawakened") return "after_rain";
+
+  if (
+    latestWaterCondition === "frozen" ||
+    latestWaterCondition === "partially_frozen" ||
+    latestWaterCondition === "snow_ice_present"
+  ) {
+    return "frozen";
+  }
+  if (latestWaterCondition === "full") {
+    return FLOWING_SPOT_TYPES.has(spotType) ? "flowing" : "full";
+  }
+  if (latestWaterCondition === "receding" || latestWaterCondition === "puddle_only") {
+    return "shallow";
+  }
+
+  return lifecycleState === "alive" ? "alive" : "unknown";
+}
 
 export type MomentSighting = {
   id: number;
@@ -266,9 +328,12 @@ function groupObservationsIntoMoments(rows: Observation[]): MomentSummary[] {
  * not several. Pure — takes every observation row for the spot; see
  * fetchSpotObservationRows for where those rows come from.
  */
-function computeLifecycle(rows: Observation[], locationCreatedAt: Date): { state: LifecycleState; lastActivityAt: Date } {
+function computeLifecycle(
+  rows: Observation[],
+  locationCreatedAt: Date,
+): { state: LifecycleState; lastActivityAt: Date; latestWaterCondition: string | null } {
   if (rows.length === 0) {
-    return { state: "alive", lastActivityAt: locationCreatedAt };
+    return { state: "alive", lastActivityAt: locationCreatedAt, latestWaterCondition: null };
   }
 
   const moments = groupObservationsIntoMoments(rows);
@@ -276,15 +341,15 @@ function computeLifecycle(rows: Observation[], locationCreatedAt: Date): { state
   const daysSinceLatest = (Date.now() - new Date(latest.capturedAt).getTime()) / 86_400_000;
 
   if (latest.waterCondition === "dry") {
-    return { state: "dry", lastActivityAt: latest.capturedAt };
+    return { state: "dry", lastActivityAt: latest.capturedAt, latestWaterCondition: latest.waterCondition };
   }
   if (prior?.waterCondition === "dry" && daysSinceLatest < 3) {
-    return { state: "reawakened", lastActivityAt: latest.capturedAt };
+    return { state: "reawakened", lastActivityAt: latest.capturedAt, latestWaterCondition: latest.waterCondition };
   }
   if (daysSinceLatest > 7) {
-    return { state: "drying", lastActivityAt: latest.capturedAt };
+    return { state: "drying", lastActivityAt: latest.capturedAt, latestWaterCondition: latest.waterCondition };
   }
-  return { state: "alive", lastActivityAt: latest.capturedAt };
+  return { state: "alive", lastActivityAt: latest.capturedAt, latestWaterCondition: latest.waterCondition };
 }
 
 /**
@@ -303,9 +368,10 @@ async function fetchSpotObservationRows(source: DataSource, locationId: number):
 
 function toSpotSummary(
   loc: Location,
-  lifecycle: { state: LifecycleState; lastActivityAt: Date },
+  lifecycle: { state: LifecycleState; lastActivityAt: Date; latestWaterCondition: string | null },
   momentCount: number,
 ): SpotSummary {
+  const spotType = loc.waterResourceType ?? "other";
   return {
     id: loc.id,
     creatorId: loc.userId,
@@ -313,8 +379,13 @@ function toSpotSummary(
     latitude: loc.latitude,
     longitude: loc.longitude,
     placeName: loc.placeName,
-    spotType: loc.waterResourceType ?? "other",
+    spotType,
     lifecycleState: lifecycle.state,
+    waterState: deriveSpotWaterState({
+      lifecycleState: lifecycle.state,
+      spotType,
+      latestWaterCondition: lifecycle.latestWaterCondition,
+    }),
     firstSeenAt: loc.createdAt,
     lastActivityAt: lifecycle.lastActivityAt,
     momentCount,
@@ -353,12 +424,19 @@ export async function createSpot(data: {
   return getSpotById(insertedId);
 }
 
-export async function listSpots(): Promise<SpotSummary[]> {
+// A Spot is one user's personal record of a place, not the physical place
+// itself — `locations.userId` already names its owner, so "the map" is
+// always "my map": every caller of this must pass the viewing user, and
+// gets back only spots they themselves created. (A future shared
+// physical-place layer — the same puddle known to user A as "large
+// puddle" and to user B as "just a puddle" — would join rows by a new
+// physicalPlaceId column; it wouldn't change this per-user filter.)
+export async function listSpots(userId: number): Promise<SpotSummary[]> {
   const source = await resolveDataSource();
   const rows =
     source.mode === "memory"
-      ? await memoryStore.listLocations()
-      : await source.db.select().from(locations).orderBy(desc(locations.createdAt));
+      ? (await memoryStore.listLocations()).filter(loc => loc.userId === userId)
+      : await source.db.select().from(locations).where(eq(locations.userId, userId)).orderBy(desc(locations.createdAt));
 
   return Promise.all(
     rows.map(async loc => {
@@ -382,11 +460,13 @@ export async function getSpotById(id: number): Promise<SpotSummary | null> {
 
 /**
  * A spot's story: the spot itself plus every moment logged there, newest
- * first.
+ * first — visible only to the user who owns the spot. Returns null for a
+ * spot that doesn't exist and for one that exists but belongs to someone
+ * else, identically, so a guessed id can't be used to tell the two apart.
  */
-export async function getSpotDetail(spotId: number) {
+export async function getSpotDetail(spotId: number, userId: number) {
   const spot = await getSpotById(spotId);
-  if (!spot) return null;
+  if (!spot || spot.creatorId !== userId) return null;
 
   const source = await resolveDataSource();
   const rows =
@@ -399,6 +479,30 @@ export async function getSpotDetail(spotId: number) {
           .orderBy(desc(observations.createdAt));
 
   return { spot, moments: groupObservationsIntoMoments(rows) };
+}
+
+/**
+ * Deletes a spot and every moment logged there — ownership-checked the
+ * same way getSpotDetail is, so a guessed id can't delete someone else's
+ * spot. Returns false (not an error) for a spot that doesn't exist or
+ * isn't owned by this user, identically, for the same guessed-id reason.
+ * observations.locationId has no DB-level foreign key/cascade (see
+ * drizzle/schema.ts), so its rows are deleted explicitly, before the
+ * location row itself.
+ */
+export async function deleteSpot(spotId: number, userId: number): Promise<boolean> {
+  const spot = await getSpotById(spotId);
+  if (!spot || spot.creatorId !== userId) return false;
+
+  const source = await resolveDataSource();
+  if (source.mode === "memory") {
+    await memoryStore.deleteObservationsByLocationId(spotId);
+    await memoryStore.deleteLocation(spotId);
+  } else {
+    await source.db.delete(observations).where(eq(observations.locationId, spotId));
+    await source.db.delete(locations).where(eq(locations.id, spotId));
+  }
+  return true;
 }
 
 /**
@@ -435,7 +539,10 @@ export async function createMoment(data: {
     source.mode === "memory"
       ? await memoryStore.getLocationById(data.spotId)
       : (await source.db.select().from(locations).where(eq(locations.id, data.spotId)).limit(1))[0];
-  if (!spot) throw new Error("Water spot not found");
+  // Same "not found" for a missing spot and for one that belongs to someone
+  // else — a moment can only ever be logged onto the caller's own spot,
+  // and the error shouldn't confirm that some other user's spot exists.
+  if (!spot || spot.userId !== data.userId) throw new Error("Water spot not found");
 
   const now = data.capturedAt ?? new Date();
   const groupKey = nanoid(MOMENT_GROUP_KEY_LENGTH);

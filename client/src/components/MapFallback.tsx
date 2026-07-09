@@ -1,54 +1,118 @@
 import { LocateFixed } from "lucide-react";
 import { spawnRipple } from "@/lib/ripple";
-import { markColor, markPresence, relationshipDepth, rippleMarkMetrics, PULSING_LIFECYCLE_STATES } from "@/lib/spotVisual";
+import { markColor, markCoreColor, markPresence, relationshipDepth, rippleMarkMetrics, PULSING_WATER_STATES } from "@/lib/spotVisual";
+import { distanceMeters } from "@/lib/geo";
 import type { SpotSummary } from "../../../server/db";
 
 type LatLng = { lat: number; lng: number };
+type LayoutPoint = { key: string; lat: number; lng: number };
 
-// Turns real lat/lng into a 0–100% position within this panel by
-// normalizing against the bounding box of every point being shown (all
-// spots plus, if available, the user). Not a real projection — there are
-// no tiles here — just enough geometry that a user's own spots keep
-// their relative layout to each other when real map tiles can't load.
+// Points closer than this are treated as "the same neighborhood" for
+// layout purposes — a similar scale to Capture's own nearby-spot
+// suggestion radius (see SUGGEST_RADIUS_M in pages/Capture.tsx), just
+// for grouping marks visually rather than matching a moment to a spot.
+const CLUSTER_RADIUS_M = 300;
+
+// Groups points into clusters by real-world proximity (greedy, single
+// pass; a cluster's centroid updates as members join). Each cluster is
+// then laid out as one independent unit on screen (see
+// normalizePositions below) — so a single geographically distant point
+// can never distort how an entire local cluster is laid out relative to
+// itself, and a tight local cluster's layout never depends on how far
+// away anything else happens to be.
+function clusterPoints(points: LayoutPoint[], radiusM: number): { lat: number; lng: number; members: LayoutPoint[] }[] {
+  const clusters: { lat: number; lng: number; members: LayoutPoint[] }[] = [];
+  for (const p of points) {
+    const target = clusters.find(c => distanceMeters({ lat: p.lat, lng: p.lng }, { lat: c.lat, lng: c.lng }) <= radiusM);
+    if (target) {
+      target.members.push(p);
+      target.lat = target.members.reduce((sum, m) => sum + m.lat, 0) / target.members.length;
+      target.lng = target.members.reduce((sum, m) => sum + m.lng, 0) / target.members.length;
+    } else {
+      clusters.push({ lat: p.lat, lng: p.lng, members: [p] });
+    }
+  }
+  return clusters;
+}
+
+// A golden-angle spiral so members of the same cluster fan out into a
+// small rosette rather than stacking exactly on top of one another —
+// deterministic, no randomness needed, and separation only ever grows as
+// more members join (never simply "bigger," see docs/design/
+// 01_MAP_SCREEN.md).
+const GOLDEN_ANGLE = 137.508 * (Math.PI / 180);
+
+function spiralOffset(index: number, count: number, maxRadiusPct: number): { dx: number; dy: number } {
+  if (count <= 1) return { dx: 0, dy: 0 };
+  const angle = index * GOLDEN_ANGLE;
+  const radius = maxRadiusPct * Math.sqrt(index / (count - 1));
+  return { dx: Math.cos(angle) * radius, dy: Math.sin(angle) * radius };
+}
+
+// Lays out every spot (and the user, if located) as independent
+// clusters arranged in a grid — cluster count and rough geographic order
+// (north/south via rows, west/east via columns) determine placement,
+// never literal distance between points, so one distant outlier can
+// never compress everything else toward a single pixel. Within a
+// cluster, members spiral outward from its own cell center. Replaces a
+// previous single global bounding-box projection, which collapsed the
+// whole demo cluster to one point the moment any one spot existed far
+// away — reproduced by creating a spot in Seoul next to the seeded San
+// Francisco cluster. Still not a real projection — there are no tiles
+// here — just enough geometry that every Spot stays independently
+// discoverable regardless of how a user's real-world captures happen to
+// be scattered.
 function normalizePositions(spots: SpotSummary[], userCoords: LatLng | null) {
-  const points: LatLng[] = spots.map(s => ({ lat: Number(s.latitude), lng: Number(s.longitude) }));
-  if (userCoords) points.push(userCoords);
+  const points: LayoutPoint[] = spots.map(s => ({
+    key: `spot-${s.id}`,
+    lat: Number(s.latitude),
+    lng: Number(s.longitude),
+  }));
+  if (userCoords) points.push({ key: "user", lat: userCoords.lat, lng: userCoords.lng });
 
   if (points.length === 0) {
     return { forSpot: () => ({ x: 50, y: 50 }), user: null as { x: number; y: number } | null };
   }
 
-  const lats = points.map(p => p.lat);
-  const lngs = points.map(p => p.lng);
-  let minLat = Math.min(...lats);
-  let maxLat = Math.max(...lats);
-  let minLng = Math.min(...lngs);
-  let maxLng = Math.max(...lngs);
+  const clusters = clusterPoints(points, CLUSTER_RADIUS_M);
 
-  // Padding so a single spot (or a tight cluster) doesn't sit at a
-  // degenerate zero-width box, and nothing renders flush against an edge.
-  const latPad = Math.max((maxLat - minLat) * 0.3, 0.006);
-  const lngPad = Math.max((maxLng - minLng) * 0.3, 0.006);
-  minLat -= latPad;
-  maxLat += latPad;
-  minLng -= lngPad;
-  maxLng += lngPad;
+  const cols = Math.max(1, Math.ceil(Math.sqrt(clusters.length)));
+  const rows = Math.max(1, Math.ceil(clusters.length / cols));
+  const cellW = 100 / cols;
+  const cellH = 100 / rows;
+  // Capped to a fraction of the smaller cell dimension so even a
+  // crowded cluster never spills into its neighbor's cell.
+  const maxSpiralRadius = Math.min(cellW, cellH) * 0.32;
 
-  const toPct = (lat: number, lng: number) => ({
-    x: ((lng - minLng) / (maxLng - minLng)) * 100,
-    // Latitude increases northward, which is "up" — smaller y in screen space.
-    y: (1 - (lat - minLat) / (maxLat - minLat)) * 100,
-  });
+  // North (higher latitude) reads as "up," the same convention as the
+  // real map — bucketed into rows, then each row sorted west-to-east
+  // into columns. Approximate, not a literal projection: only relative
+  // order matters, never actual distance, which is exactly what makes
+  // this robust to an arbitrarily distant outlier.
+  const byLatDesc = [...clusters].sort((a, b) => b.lat - a.lat);
+  const positions = new Map<string, { x: number; y: number }>();
+
+  for (let row = 0; row < rows; row++) {
+    const rowClusters = byLatDesc.slice(row * cols, (row + 1) * cols).sort((a, b) => a.lng - b.lng);
+    rowClusters.forEach((cluster, col) => {
+      const cx = cellW * (col + 0.5);
+      const cy = cellH * (row + 0.5);
+      cluster.members.forEach((member, mi) => {
+        const { dx, dy } = spiralOffset(mi, cluster.members.length, maxSpiralRadius);
+        positions.set(member.key, { x: cx + dx, y: cy + dy });
+      });
+    });
+  }
 
   return {
-    forSpot: (s: SpotSummary) => toPct(Number(s.latitude), Number(s.longitude)),
-    user: userCoords ? toPct(userCoords.lat, userCoords.lng) : null,
+    forSpot: (s: SpotSummary) => positions.get(`spot-${s.id}`) ?? { x: 50, y: 50 },
+    user: userCoords ? (positions.get("user") ?? null) : null,
   };
 }
 
 /**
- * The relationship landscape when real map tiles can't load (no Forge
- * Maps credentials, or a network failure) — never a blank panel. Same
+ * The relationship landscape when real map tiles can't load (no Google
+ * Maps API key, or a network failure) — never a blank panel. Same
  * ripple marks as the real map (see lib/spotVisual.ts), laid out over a
  * soft gradient wash with a quiet suggestion of water winding through it,
  * rather than literal tiles.
@@ -81,10 +145,11 @@ export function MapFallback({
       {spots.map(spot => {
         const depth = relationshipDepth(spot);
         const { haloSize, coreSize, glowBlur, glowSpread } = rippleMarkMetrics(depth);
-        const color = markColor(spot, depth);
+        const color = markColor(spot);
+        const coreColor = markCoreColor(spot);
         const presence = markPresence(spot);
         const pos = forSpot(spot);
-        const pulsing = PULSING_LIFECYCLE_STATES.has(spot.lifecycleState);
+        const pulsing = PULSING_WATER_STATES.has(spot.waterState);
 
         return (
           <button
@@ -99,8 +164,8 @@ export function MapFallback({
             style={{ left: `${pos.x}%`, top: `${pos.y}%`, width: haloSize, height: haloSize, opacity: presence, color }}
           >
             <span
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-              style={{ width: coreSize, height: coreSize, background: color, boxShadow: `0 0 ${glowBlur}px ${glowSpread}px ${color}` }}
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-white/85"
+              style={{ width: coreSize, height: coreSize, background: coreColor, boxShadow: `0 0 ${glowBlur}px ${glowSpread}px ${color}, 0 1px 3px rgba(33, 47, 48, 0.3)` }}
             />
           </button>
         );

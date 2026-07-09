@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { InsertUser, User, Location, Observation } from "../drizzle/schema";
 
 /**
@@ -10,23 +12,91 @@ import type { InsertUser, User, Location, Observation } from "../drizzle/schema"
  * (groupObservationsIntoMoments, computeLifecycle, toSpotSummary) runs
  * unchanged regardless of which backend produced the rows.
  *
- * Deliberately resets whenever the process restarts — this exists to
- * unblock local demoing without Docker/MySQL, not to be a real
- * persistence layer. Production always requires a real DATABASE_URL;
- * see resolveDataSource's isProduction gate in db.ts.
+ * Survives a dev-server restart (see loadFromDisk/persist below) — it
+ * used to wipe on every restart, which was fine for a from-scratch demo
+ * but meant anything captured during a real local session (`tsx watch`
+ * restarts on every server-file save) vanished the moment you touched an
+ * unrelated file. Still not a real persistence layer: single JSON file,
+ * last-write-wins, no migrations, no concurrent-writer safety — exactly
+ * as safe as the in-memory store it's backing and no safer. Production
+ * always requires a real DATABASE_URL; see resolveDataSource's
+ * isProduction gate in db.ts, which this file is never reached without
+ * failing anyway.
  */
+
+const STORE_FILE = path.resolve(import.meta.dirname, "..", ".local-data", "store.json");
 
 let nextUserId = 1;
 let nextLocationId = 1;
 let nextObservationId = 1;
 
-const users: User[] = [];
-const locations: Location[] = [];
-const observations: Observation[] = [];
+let users: User[] = [];
+let locations: Location[] = [];
+let observations: Observation[] = [];
 
 function clone<T>(value: T): T {
   return { ...value };
 }
+
+// Date fields round-trip through JSON as strings — this reverses that on
+// load so callers (which all expect real Date objects, per the drizzle-
+// inferred types above) never notice a JSON file is involved at all.
+const DATE_FIELDS_BY_TABLE = {
+  users: ["createdAt", "updatedAt", "lastSignedIn"],
+  locations: ["createdAt", "updatedAt"],
+  observations: ["createdAt", "updatedAt"],
+} as const;
+
+function reviveDates<T extends Record<string, unknown>>(rows: T[], fields: readonly string[]): T[] {
+  for (const row of rows) {
+    for (const field of fields) {
+      if (typeof row[field] === "string") (row as Record<string, unknown>)[field] = new Date(row[field] as string);
+    }
+  }
+  return rows;
+}
+
+// Loaded once at module init (process boot), not per-call — the whole
+// point is avoiding a real database's per-request cost for local demoing.
+function loadFromDisk(): void {
+  try {
+    if (!fs.existsSync(STORE_FILE)) return;
+    const raw = JSON.parse(fs.readFileSync(STORE_FILE, "utf-8"));
+    users = reviveDates(raw.users ?? [], DATE_FIELDS_BY_TABLE.users);
+    locations = reviveDates(raw.locations ?? [], DATE_FIELDS_BY_TABLE.locations);
+    observations = reviveDates(raw.observations ?? [], DATE_FIELDS_BY_TABLE.observations);
+    nextUserId = raw.nextUserId ?? 1;
+    nextLocationId = raw.nextLocationId ?? 1;
+    nextObservationId = raw.nextObservationId ?? 1;
+  } catch (err) {
+    // Corrupt or unreadable file must never block boot — same principle
+    // as every other "local demo" fallback in this codebase (see
+    // server/storage.ts, describeLocation, etc.): degrade to empty
+    // in-memory state, never crash the app over convenience data.
+    console.warn("[memoryStore] Failed to load local persisted data, starting empty:", err instanceof Error ? err.message : err);
+  }
+}
+
+// Synchronous and called after every mutation, not batched/debounced —
+// local dev traffic is low enough that the I/O cost is a non-issue, and
+// synchronous writes mean a crash or a fast subsequent read can never
+// observe a mutation that hasn't actually reached disk yet.
+function persist(): void {
+  try {
+    fs.mkdirSync(path.dirname(STORE_FILE), { recursive: true });
+    fs.writeFileSync(
+      STORE_FILE,
+      JSON.stringify({ nextUserId, nextLocationId, nextObservationId, users, locations, observations }, null, 2),
+    );
+  } catch (err) {
+    // Same principle as loadFromDisk: a write failure degrades to
+    // "this session's data won't survive a restart" (today's old
+    // behavior), never a crash.
+    console.warn("[memoryStore] Failed to persist local data:", err instanceof Error ? err.message : err);
+  }
+}
+
+loadFromDisk();
 
 export type InsertLocationInput = {
   userId: number;
@@ -63,7 +133,10 @@ export type InsertObservationInput = {
 
 export const memoryStore = {
   /** Exposed for tests / an explicit "start fresh" action; not called
-   *  automatically — process restart already clears everything. */
+   *  automatically. Now that data persists across restarts (see
+   *  loadFromDisk/persist above), this is also the one way to actually
+   *  get back to empty — deletes the persisted file too, not just the
+   *  in-memory arrays. */
   reset() {
     users.length = 0;
     locations.length = 0;
@@ -71,6 +144,11 @@ export const memoryStore = {
     nextUserId = 1;
     nextLocationId = 1;
     nextObservationId = 1;
+    try {
+      fs.rmSync(STORE_FILE, { force: true });
+    } catch (err) {
+      console.warn("[memoryStore] Failed to delete persisted data file:", err instanceof Error ? err.message : err);
+    }
   },
 
   async getUserByOpenId(openId: string): Promise<User | undefined> {
@@ -88,6 +166,7 @@ export const memoryStore = {
       if (data.role !== undefined) existing.role = data.role;
       existing.lastSignedIn = data.lastSignedIn ?? now;
       existing.updatedAt = now;
+      persist();
       return;
     }
     users.push({
@@ -101,6 +180,7 @@ export const memoryStore = {
       updatedAt: now,
       lastSignedIn: data.lastSignedIn ?? now,
     });
+    persist();
   },
 
   async insertLocation(data: InsertLocationInput): Promise<Location> {
@@ -119,6 +199,7 @@ export const memoryStore = {
       updatedAt: now,
     };
     locations.push(row);
+    persist();
     return clone(row);
   },
 
@@ -129,6 +210,19 @@ export const memoryStore = {
 
   async listLocations(): Promise<Location[]> {
     return [...locations].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).map(clone);
+  },
+
+  async deleteLocation(id: number): Promise<void> {
+    const index = locations.findIndex(l => l.id === id);
+    if (index !== -1) locations.splice(index, 1);
+    persist();
+  },
+
+  async deleteObservationsByLocationId(locationId: number): Promise<void> {
+    for (let i = observations.length - 1; i >= 0; i--) {
+      if (observations[i].locationId === locationId) observations.splice(i, 1);
+    }
+    persist();
   },
 
   async insertObservation(data: InsertObservationInput): Promise<Observation> {
@@ -166,6 +260,7 @@ export const memoryStore = {
       updatedAt: now,
     };
     observations.push(row);
+    persist();
     return clone(row);
   },
 

@@ -86,28 +86,47 @@ declare global {
   }
 }
 
-const API_KEY = import.meta.env.VITE_FRONTEND_FORGE_API_KEY;
-const FORGE_BASE_URL =
-  import.meta.env.VITE_FRONTEND_FORGE_API_URL ||
-  "https://forge.butterfly-effect.dev";
-const MAPS_PROXY_URL = `${FORGE_BASE_URL}/v1/maps/proxy`;
+const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+const GOOGLE_MAPS_BASE_URL = "https://maps.googleapis.com";
+
+// Module-level, not component-level: both useGoogleMapsAvailable() and
+// MapView call loadMapScript() independently, and MapHome fully unmounts/
+// remounts on every route change (Map -> Spot -> back), so without this
+// cache every one of those call sites — on every single visit to the Map
+// — injected another live copy of the Google Maps bootstrap script into
+// the page. Google's own docs warn that including the script more than
+// once "may cause unexpected errors" (duplicated library registration,
+// markers/state behaving inconsistently) — this is what was actually
+// causing spots to go missing after Spot -> back navigation, not
+// anything in the marker-plotting logic itself. Reset to null on a
+// failed load so a transient network blip can still retry on the next
+// call, rather than permanently caching a failure.
+let mapScriptPromise: Promise<void> | null = null;
 
 export function loadMapScript(): Promise<void> {
-  return new Promise(resolve => {
+  if (mapScriptPromise) return mapScriptPromise;
+
+  mapScriptPromise = new Promise(resolve => {
+    if (window.google?.maps) {
+      // Already loaded by an earlier call in this page's lifetime (or
+      // survived a dev HMR reset of this module) — nothing to inject.
+      resolve();
+      return;
+    }
     if (!API_KEY) {
-      // No Forge Maps key configured — the common case for a bare local
-      // or phone-LAN preview. Resolve immediately instead of letting the
-      // browser attempt (and slowly fail, over a real network hop to
-      // forge.butterfly-effect.dev) a request with an invalid key — that
+      // No Google Maps key configured — the common case for a bare
+      // local or phone-LAN preview. Resolve immediately instead of
+      // letting the browser attempt (and slowly fail, over a real
+      // network hop to Google) a request with an invalid key — that
       // failed request was a real contributor to slow page loads, and
       // previously left the map hung forever besides, since onerror
       // never resolved this promise.
-      console.warn("[Map] VITE_FRONTEND_FORGE_API_KEY not set — map tiles won't load in this preview.");
+      console.warn("[Map] VITE_GOOGLE_MAPS_API_KEY not set — map tiles won't load in this preview.");
       resolve();
       return;
     }
     const script = document.createElement("script");
-    script.src = `${MAPS_PROXY_URL}/maps/api/js?key=${API_KEY}&v=weekly&libraries=marker,places,geocoding,geometry`;
+    script.src = `${GOOGLE_MAPS_BASE_URL}/maps/api/js?key=${API_KEY}&v=weekly&libraries=marker,places,geocoding,geometry`;
     script.async = true;
     script.crossOrigin = "anonymous";
     script.onload = () => {
@@ -116,10 +135,13 @@ export function loadMapScript(): Promise<void> {
     };
     script.onerror = () => {
       console.error("Failed to load Google Maps script");
+      mapScriptPromise = null;
       resolve();
     };
     document.head.appendChild(script);
   });
+
+  return mapScriptPromise;
 }
 
 interface MapViewProps {

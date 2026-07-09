@@ -61,6 +61,10 @@
   --water-mist-2: #eaf1f0;
   --warm: #9c8256;
   --warm-mist: #efe9da;
+  /* "You are here" only — never used for a Spot (Spot marker colors are
+     the fixed WATER_STATE_STYLE palette in lib/spotVisual.ts, not a CSS
+     variable, so they read identically regardless of theme). */
+  --location-mark: #4f80c9;
 
   --ease-ripple: cubic-bezier(0.22, 1, 0.36, 1);
 
@@ -112,6 +116,7 @@
   --water-mist-2: #1f3032;
   --warm: #c7ac79;
   --warm-mist: #3a3324;
+  --location-mark: #8fb3e8;
 
   --primary: var(--water-deep);
   --primary-foreground: #12191a;
@@ -233,6 +238,31 @@
       transform: translateY(0);
     }
   }
+}
+
+/* Mutes the Google Map's own base tiles/vector canvas — never the
+   AdvancedMarkerElement overlays layered on top of it — so Spot and
+   location markers stay at full color while roads/POIs/labels/buildings
+   recede. Scoped via `.gm-style > div:first-child`: Google's Maps
+   JavaScript API has, for years, rendered the base map (raster tiles or,
+   with a Map ID, the vector WebGL canvas) as the first child inside its
+   own injected `.gm-style` wrapper, with every overlay pane (markers,
+   controls) appended as later siblings within that same wrapper — this
+   selector reaches past `.gm-style` to grab only that first child. Exists
+   because `mapStyles`/WATERLOG_MAP_STYLE (see pages/MapHome.tsx) has no
+   effect at all on a vector map (Map ID "DEMO_MAP_ID"): per Google's own
+   docs, vector Map IDs ignore the client-side `styles` array entirely —
+   custom styling there only works from Cloud Console against a real,
+   non-demo Map ID. This is the only remaining lever, and — unlike an
+   earlier version that put `filter` on an ancestor of the whole map
+   (muting markers right along with the tiles, since a CSS filter on a
+   parent can't be undone by a child) — scoping it to the tile layer alone
+   keeps markers unaffected. Not officially documented API surface, so
+   re-verify this selector still matches if a future Maps JS API version
+   changes its internal DOM structure — the failure mode if it stops
+   matching is just "map isn't muted anymore," not a crash. */
+.waterlog-map-tiles .gm-style > div:first-child {
+  filter: saturate(0.55) contrast(0.9) brightness(1.04) sepia(0.05) hue-rotate(-3deg);
 }
 
 @layer components {

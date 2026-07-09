@@ -1,13 +1,26 @@
 import { useState } from "react";
 import { useLocation, useParams, Link } from "wouter";
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { getSpotTypeLabel, getWaterConditionLabel, getBehaviorInfinitive, LIFECYCLE_LABELS, formatSighting } from "@/const";
-import { ArrowLeft, Plus, Droplets, Bird, Waves } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { getSpotTypeLabel, getWaterConditionLabel, getBehaviorInfinitive, formatSighting } from "@/const";
+import { ArrowLeft, Plus, Droplets, Bird } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { dayHeaderLabel, groupByDay, shortDateLabel } from "@/lib/dates";
-import { LIFECYCLE_DOT_COLOR } from "@/lib/spotVisual";
+import { resolveWaterStateStyle } from "@/lib/spotVisual";
+import { SpotIllustration } from "@/components/SpotIllustration";
 import type { MomentSummary } from "../../../server/db";
 
 function topByFrequency(items: string[], limit: number): string[] {
@@ -36,8 +49,11 @@ function placeCharacterSentence(spotType: string, moments: MomentSummary[]): str
   if (moments.length === 0) return null;
 
   const spotWord = getSpotTypeLabel(spotType).toLowerCase();
+  // "other" / "Other" are deliberately excluded before ranking — a
+  // generic catch-all should never become the one thing this sentence
+  // claims to know about the place ("usually other," "stops to other").
   const topCondition = topByFrequency(
-    moments.map(m => m.waterCondition).filter((c): c is string => !!c),
+    moments.map(m => m.waterCondition).filter((c): c is string => !!c && c !== "other"),
     1,
   )[0];
   const conditionPhrase = topCondition ? WATER_CONDITION_CHARACTER[topCondition] : null;
@@ -47,7 +63,7 @@ function placeCharacterSentence(spotType: string, moments: MomentSummary[]): str
     1,
   )[0];
   const behaviorLabel = topByFrequency(
-    moments.flatMap(m => m.sightings.flatMap(s => s.behaviors)),
+    moments.flatMap(m => m.sightings.flatMap(s => s.behaviors)).filter(b => b !== "Other"),
     1,
   )[0];
   const behavior = behaviorLabel ? getBehaviorInfinitive(behaviorLabel) : undefined;
@@ -71,27 +87,25 @@ function birdActivityLevel(moments: MomentSummary[]): "None" | "Low" | "Medium" 
   return "High";
 }
 
-// The emotional center of Layer 1. Same slot, same aspect ratio, whether
-// it holds a real photo or (for now) a plain placeholder — so the
-// illustration system promised in docs/design/06_SPOT_SCREEN.md can drop
-// in here later (built from water-type/condition/bird-activity parts)
-// without any layout change, only this component's body changing.
-function RepresentativeVisual({ photoUrl }: { photoUrl?: string }) {
-  if (photoUrl) {
-    return <img src={photoUrl} alt="" className="h-full w-full object-cover" />;
-  }
-  return (
-    <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-[var(--water-mist)] to-[var(--water-mist-2)]">
-      <Waves className="h-9 w-9 text-muted-foreground/30" />
-    </div>
-  );
-}
-
 export default function SpotStory() {
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const spotId = Number(params.id);
   const { data, isLoading } = trpc.spots.getById.useQuery({ id: spotId }, { enabled: !Number.isNaN(spotId) });
+  const utils = trpc.useUtils();
+  // Same "invalidate then navigate" order as Capture's own save flow —
+  // by the time MapHome remounts on `/`, spots.list is already marked
+  // stale, so its fresh fetch excludes this spot rather than briefly
+  // showing it and then popping it out a beat later.
+  const deleteSpot = trpc.spots.delete.useMutation({
+    onSuccess: async () => {
+      await utils.spots.list.invalidate();
+      navigate("/");
+    },
+    onError: () => {
+      toast("Couldn't delete this spot", { description: "Check your connection and try again." });
+    },
+  });
   // Layer 1 (Place Portrait) and Layer 2 (Story) are two different
   // purposes, not two sections of one page — see docs/design/
   // 06_SPOT_SCREEN.md. Toggled locally rather than routed, so entering
@@ -120,7 +134,6 @@ export default function SpotStory() {
   }
 
   const { spot, moments } = data;
-  const coverPhoto = moments.find(m => m.photoUrls.length > 0)?.photoUrls[0];
   const placeSentence = placeCharacterSentence(spot.spotType, moments);
   const latestWaterCondition = moments[0]?.waterCondition;
   const activityLevel = birdActivityLevel(moments);
@@ -192,6 +205,41 @@ export default function SpotStory() {
             </div>
           ))}
         </div>
+
+        {/* Quiet, deliberately unstyled as an action — tucked below
+            everything else so it's never the thing this screen is about.
+            AlertDialog (not a bare confirm()) so the copy can stay calm
+            and specific instead of a generic browser prompt. */}
+        <div className="mx-4 mt-10 flex justify-center">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground underline underline-offset-2 hover:text-destructive"
+              >
+                Delete spot
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this spot?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will remove this place and its moments from your journal.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleteSpot.isPending}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={deleteSpot.isPending}
+                  onClick={() => deleteSpot.mutate({ id: spot.id })}
+                  className={buttonVariants({ variant: "destructive" })}
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
     );
   }
@@ -202,7 +250,11 @@ export default function SpotStory() {
   return (
     <div className="settle-in flex h-[100dvh] flex-col overflow-hidden">
       <div className="flex-shrink-0 px-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
-        <Button size="icon" variant="ghost" onClick={() => navigate("/")}>
+        {/* Real back, not a hardcoded destination — a Spot can be entered
+            from the Map, the Spots list, or the Journal, and each of
+            those should be where this returns to. Matches the pattern
+            already used in Capture.tsx. */}
+        <Button size="icon" variant="ghost" onClick={() => window.history.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
@@ -214,9 +266,9 @@ export default function SpotStory() {
         <p className="mt-1.5 text-xs text-muted-foreground">
           <span
             className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full"
-            style={{ backgroundColor: LIFECYCLE_DOT_COLOR[spot.lifecycleState] }}
+            style={{ backgroundColor: resolveWaterStateStyle(spot).color }}
           />
-          {LIFECYCLE_LABELS[spot.lifecycleState]} · Since {shortDateLabel(new Date(spot.firstSeenAt))}
+          {resolveWaterStateStyle(spot).label} · Since {shortDateLabel(new Date(spot.firstSeenAt))}
         </p>
       </div>
 
@@ -237,7 +289,7 @@ export default function SpotStory() {
 
       <div className="min-h-0 flex-1 px-5 pt-4">
         <div className="h-full w-full overflow-hidden rounded-3xl">
-          <RepresentativeVisual photoUrl={coverPhoto} />
+          <SpotIllustration spot={spot} waterCondition={latestWaterCondition} birdActivity={activityLevel} />
         </div>
       </div>
 

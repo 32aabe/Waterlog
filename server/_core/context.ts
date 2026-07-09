@@ -12,11 +12,13 @@ export type TrpcContext = {
 
 const LOCAL_DEV_OPEN_ID = "local-dev-admin";
 
-// Gated on BOTH conditions so this can never activate in a real
-// deployment (NODE_ENV=production) or for anyone testing real OAuth
-// locally (OAUTH_SERVER_URL set) — only the specific "bare local/phone-
-// LAN preview with no OAuth configured" case this exists for.
-const LOCAL_DEV_AUTH_ENABLED = !ENV.isProduction && !ENV.oAuthServerUrl;
+// Gated so this can never activate for anyone testing real OAuth locally
+// or in a real deployment (OAUTH_SERVER_URL set) — only the specific
+// "bare local/phone-LAN preview with no OAuth configured" case this
+// exists for, plus its production counterpart: a WATERLOG_DEMO_MODE=true
+// deploy, which deliberately runs without real OAuth too (see ENV.demoMode
+// in env.ts).
+const LOCAL_DEV_AUTH_ENABLED = (!ENV.isProduction || ENV.demoMode) && !ENV.oAuthServerUrl;
 
 let localDevUserPromise: Promise<User | null> | null = null;
 

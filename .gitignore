@@ -106,6 +106,9 @@ temp/
 *.sqlite
 *.sqlite3
 
+# Local-only persisted copy of the in-memory demo store (server/memoryStore.ts)
+.local-data/
+
 # Webdev artifacts (checkpoint zips, migrations, etc.)
 .webdev/
 

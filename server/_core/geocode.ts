@@ -3,7 +3,7 @@ import { makeRequest, type GeocodingResult } from "./map";
 // Quietly turns coordinates into a short, nameable phrase for the
 // Capture dateline and the spot's placeName (see docs/03_DESIGN_MANIFESTO.md
 // §6, §15 — AI fills context in ambiently, never asks for it). Reverse
-// geocoding needs Forge Maps credentials that aren't present in local/
+// geocoding needs a GOOGLE_MAPS_API_KEY that isn't present in local/
 // offline dev (see .env.example), and even when configured, a coordinate
 // may not resolve to anything short and nameable. Always resolves to
 // null rather than throwing, so a slow or failed lookup never blocks or
@@ -35,10 +35,10 @@ export async function describeLocation(lat: number, lng: number): Promise<string
     return locality?.long_name ?? null;
   } catch (err) {
     // Logged, not swallowed — the most common cause is exactly the one
-    // named in ./map.ts's own error: BUILT_IN_FORGE_API_URL /
-    // BUILT_IN_FORGE_API_KEY missing from the server environment (see
-    // .env.example). Still resolves to null either way so a slow or
-    // misconfigured lookup never blocks or breaks Capture.
+    // named in ./map.ts's own error: GOOGLE_MAPS_API_KEY missing from
+    // the server environment (see .env.example). Still resolves to null
+    // either way so a slow or misconfigured lookup never blocks or
+    // breaks Capture.
     console.error("[geocode] describeLocation failed:", err instanceof Error ? err.message : err);
     return null;
   }

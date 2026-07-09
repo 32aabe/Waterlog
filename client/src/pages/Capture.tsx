@@ -13,7 +13,7 @@ import { getLoginUrl, SPOT_TYPE_LABELS, getSpotTypeLabel, WATER_CONDITIONS, BEHA
 import { spawnRipple } from "@/lib/ripple";
 import { fetchAmbientWeather, type AmbientWeather } from "@/lib/weather";
 import { formatClockTime } from "@/lib/dates";
-import { ArrowLeft, Camera, Plus, X, ChevronDown, Mic, Square } from "lucide-react";
+import { ArrowLeft, Camera, Plus, X, ChevronDown, Mic, Square, Droplets } from "lucide-react";
 
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -101,7 +101,7 @@ export default function Capture() {
   }, [search]);
 
   const utils = trpc.useUtils();
-  const { data: nearbySpotsData } = trpc.spots.list.useQuery(undefined, { enabled: !urlSpotId });
+  const { data: nearbySpotsData, isLoading: nearbySpotsLoading } = trpc.spots.list.useQuery(undefined, { enabled: !urlSpotId });
 
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [spotType, setSpotType] = useState<SpotType>("puddle");
@@ -252,6 +252,11 @@ export default function Capture() {
   const autoMatch = nearby.length > 0 && nearby[0].distanceM <= AUTO_MATCH_RADIUS_M ? nearby[0] : null;
 
   const [pickedNearby, setPickedNearby] = useState<number | "new">("new");
+  // Tapping "Not this place?" on a high-confidence match reveals every
+  // real nearby candidate (not just "new") — GPS proximity alone should
+  // never be the only door out of a wrong auto-match. See
+  // docs/decisions/001_PLACE_RECOGNITION.md.
+  const [revealNearby, setRevealNearby] = useState(false);
   const autoMatchApplied = useRef(false);
   useEffect(() => {
     if (!autoMatchApplied.current && autoMatch) {
@@ -440,25 +445,138 @@ export default function Capture() {
     }
   };
 
-  // Auto Context: quiet, always-visible ambient info, never gating Save.
-  // Location reflects whatever place this moment is actually headed for —
-  // an already-known spot (via urlSpotId, or a nearby match/pick) always
-  // wins over a bare place phrase, since at that point the moment really
-  // is going to that spot. The two "not available" branches are
-  // deliberately distinct: one means geolocation itself never produced
-  // coordinates (see geoErrorReason above for why), the other means
-  // coordinates exist but reverse geocoding didn't resolve a name for
-  // them (e.g. server/_core/geocode.ts's Forge Maps credentials aren't
-  // configured — see its console output for the specific cause).
-  const locationText = (() => {
-    if (!geoSettled) return "detecting…";
-    if (targetSpotId) return existingSpot ? existingSpot.spot.name || getSpotTypeLabel(existingSpot.spot.spotType) : "detecting…";
-    if (placeText) return `near ${placeText}`;
-    if (coords) return placeTextLoading ? "detecting…" : "not available — place lookup unavailable";
-    return geoErrorReason ? `not available — ${geoErrorReason}` : "not available";
-  })();
-  const weatherText = weather?.condition ? weather.condition.toLowerCase() : "not available";
+  // weather.condition is already capitalized at the source (see
+  // WMO_CONDITIONS in lib/weather.ts) — no lowercasing here, so the
+  // compact strip below reads "Overcast," not "overcast."
+  const weatherText = weather?.condition ?? "not available";
   const temperatureText = weather ? `${weather.tempC}°C` : "not available";
+
+  // True once there's enough information to say something definite about
+  // place — either a spot already chosen via urlSpotId, or both
+  // geolocation and the nearby-spots fetch have concluded. Guards the
+  // "no nearby spots" branch below from firing on a still-loading list
+  // and reading as a confident "this place is new" for a beat before the
+  // real answer arrives.
+  const recognitionSettled = !!urlSpotId || (geoSettled && !nearbySpotsLoading);
+
+  // The felt opening of Capture — "I am at this place" — before anything
+  // else, implementing the three confidence tiers from
+  // docs/decisions/001_PLACE_RECOGNITION.md: a real match is presented as
+  // fact (quietly overridable), a handful of candidates are offered as a
+  // gentle question, and a place with nothing nearby is acknowledged
+  // plainly, never as system doubt ("seems new"). GPS is only ever the
+  // clue that ranks candidates — the tap that actually decides is always
+  // the user's, via setPickedNearby below.
+  function renderPlaceRecognition() {
+    // Opened via a Spot's own "Log a moment" — already resolved, nothing
+    // left to recognize or confirm.
+    if (urlSpotId) {
+      return (
+        <>
+          <h1 className="font-display text-2xl leading-tight text-foreground">
+            {existingSpot ? existingSpot.spot.name || getSpotTypeLabel(existingSpot.spot.spotType) : "…"}
+          </h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">What happened here today?</p>
+        </>
+      );
+    }
+
+    if (!recognitionSettled) {
+      return <p className="font-display text-lg text-muted-foreground">Finding where you are…</p>;
+    }
+
+    if (!coords) {
+      // geoErrorReason carries the specific cause (permission denied,
+      // unsupported, timed out — see the geolocation effect above) so
+      // this stays honest about what happened instead of a blanket
+      // "unavailable."
+      const reasonText = geoErrorReason
+        ? geoErrorReason.charAt(0).toUpperCase() + geoErrorReason.slice(1)
+        : "Location isn't available right now";
+      return (
+        <>
+          <h1 className="font-display text-xl leading-snug text-foreground">Not sure where you are yet.</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">{reasonText} — you can still leave a note about this moment.</p>
+          <p className="mt-1 text-sm text-muted-foreground">What happened here today?</p>
+        </>
+      );
+    }
+
+    // High confidence: a real place, presented as settled fact rather
+    // than a decision waiting to be made. The override lives below the
+    // question, small and last — an escape hatch, not a competing
+    // choice. Tapping it doesn't jump straight to "new": it falls
+    // through to the same candidate list the low-confidence tier below
+    // renders (autoMatch is always nearby[0], so it's still one of the
+    // choices there, just no longer the only one).
+    if (autoMatch && !revealNearby) {
+      const matchLabel = autoMatch.name || getSpotTypeLabel(autoMatch.spotType);
+      return (
+        <>
+          <h1 className="font-display text-2xl leading-tight text-foreground">{matchLabel}</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">What happened here today?</p>
+          <button
+            type="button"
+            onClick={() => setRevealNearby(true)}
+            className="mt-2 text-xs text-muted-foreground underline underline-offset-2"
+          >
+            Not this place?
+          </button>
+        </>
+      );
+    }
+
+    // Low confidence, or a high-confidence match the user asked to see
+    // alternatives to: every real nearby candidate plus "New place",
+    // offered as one calm question — a gentle confirmation, not a setup
+    // form.
+    if (nearby.length > 0) {
+      return (
+        <>
+          <h1 className="font-display text-xl leading-tight text-foreground">Which place is this?</h1>
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {nearby.map(s => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setPickedNearby(s.id)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-xs",
+                  pickedNearby === s.id ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                )}
+              >
+                {s.name || getSpotTypeLabel(s.spotType)}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setPickedNearby("new")}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-xs",
+                pickedNearby === "new" ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+              )}
+            >
+              New place
+            </button>
+          </div>
+          <p className="mt-2.5 text-sm text-muted-foreground">What happened here today?</p>
+        </>
+      );
+    }
+
+    // Nothing nearby at all — a place worth acknowledging plainly, as a
+    // fact about the user's own history here, never as the system
+    // hedging ("seems new"). Naming, if it ever happens, comes later.
+    return (
+      <>
+        <h1 className="font-display text-2xl leading-tight text-foreground">
+          {placeText ? `Near ${placeText}` : placeTextLoading ? "…" : "This place"}
+        </h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">You haven't recorded a place here before.</p>
+        <p className="mt-1 text-sm text-muted-foreground">What happened here today?</p>
+      </>
+    );
+  }
 
   return (
     <div className="settle-in min-h-[100dvh] pb-40">
@@ -467,14 +585,47 @@ export default function Capture() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
-      <div className="px-4 pb-3">
-        <p className="text-xs font-medium text-muted-foreground">Auto context</p>
-        <div className="mt-1 space-y-0.5">
-          <p className="text-xs text-muted-foreground">Location · {locationText}</p>
-          <p className="text-xs text-muted-foreground">Weather · {weatherText}</p>
-          <p className="text-xs text-muted-foreground">Temperature · {temperatureText}</p>
-          <p className="text-xs text-muted-foreground">Time · {timeText}</p>
+
+      <div className="px-4 pb-2">{renderPlaceRecognition()}</div>
+
+      {/* Spot type — grouped with place recognition, not sandwiched
+          between the in-the-moment observations below (what the bird
+          did, what the water looks like right now). Classifying what
+          kind of place this is belongs with "where is this," since
+          Waterlog is place-centered — it's asked once, about the place,
+          not once per moment. Only shown for a spot that doesn't exist
+          yet; an existing spot already has a fixed type. */}
+      {!targetSpotId && (
+        <div className="px-4 pb-2">
+          <p className="mb-1.5 text-xs font-medium text-muted-foreground">What kind of place is it?</p>
+          <div className="flex flex-wrap gap-1.5">
+            {Object.entries(SPOT_TYPE_LABELS).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSpotType(key as SpotType)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs",
+                  spotType === key ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
+      )}
+
+      {/* Secondary, and felt that way: quietly appears a beat after the
+          place above (same .settle-in fade, delayed) rather than sharing
+          its moment — see docs/design/02_CAPTURE_SCREEN.md's Information
+          Hierarchy (Place is Primary, Weather is Secondary). Never gates
+          Save. */}
+      <div className="settle-in px-4 pb-3" style={{ animationDelay: "220ms" }}>
+        <p className="text-xs text-muted-foreground">Weather · {weatherText}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {temperatureText} · {timeText}
+        </p>
       </div>
 
       <div className="mx-4 space-y-4">
@@ -531,75 +682,6 @@ export default function Capture() {
           }}
         />
 
-        {/* Suggested place. A confident auto-match (≤25m) is pre-selected
-            by default — Save already targets it without requiring a tap —
-            since the two-tier confidence system exists precisely so this
-            case can be treated differently from the genuinely ambiguous
-            one below. The two buttons are an explicit, equally visible
-            confirm/override, replacing what used to be a quiet "Not this
-            one?" link. Doesn't render at all for the common "nothing
-            nearby" case. */}
-        {!urlSpotId && autoMatch && (
-          <div>
-            <p className="text-xs font-medium text-muted-foreground">Suggested place</p>
-            <p className="mt-0.5 font-display text-[15px] text-foreground">
-              {autoMatch.name || getSpotTypeLabel(autoMatch.spotType)}
-            </p>
-            <div className="mt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setPickedNearby(autoMatch.id)}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 text-xs font-medium",
-                  pickedNearby === autoMatch.id ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
-                )}
-              >
-                Use this place
-              </button>
-              <button
-                type="button"
-                onClick={() => setPickedNearby("new")}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 text-xs font-medium",
-                  pickedNearby === "new" ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
-                )}
-              >
-                Record as a new place
-              </button>
-            </div>
-          </div>
-        )}
-        {!urlSpotId && !autoMatch && nearby.length > 0 && (
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Nearby — is this one of these?</p>
-            <div className="flex flex-wrap gap-1.5">
-              {nearby.map(s => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setPickedNearby(s.id)}
-                  className={cn(
-                    "rounded-full border px-3 py-1 text-xs",
-                    pickedNearby === s.id ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
-                  )}
-                >
-                  {s.name || getSpotTypeLabel(s.spotType)} · {Math.round(s.distanceM)}m
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => setPickedNearby("new")}
-                className={cn(
-                  "rounded-full border px-3 py-1 text-xs",
-                  pickedNearby === "new" ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
-                )}
-              >
-                New spot
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Water interaction — the actual subject of this app: not "what
             bird," but "what was it doing with the water." One tap, no
             typing, so it reads as the main action of the flow rather than
@@ -627,12 +709,14 @@ export default function Capture() {
         </div>
 
         {/* More than one bird at once is real (a sparrow bathing while a
-            pigeon drinks) but rare — extra sightings are additive cards,
-            never in the way of the single-bird case above. */}
+            pigeon drinks) but rare — extra sightings get a quiet top rule
+            to separate them from the primary sighting above, not a
+            bordered card; nothing on this screen should look like a
+            settings panel. */}
         {sightings.slice(1).map((s, i) => {
           const index = i + 1;
           return (
-            <div key={index} className="space-y-2 rounded-xl border border-border bg-card p-3">
+            <div key={index} className="space-y-2 border-t border-border/50 pt-3">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-medium text-muted-foreground">Another bird</p>
                 <button type="button" onClick={() => removeSighting(index)} className="text-muted-foreground">
@@ -694,13 +778,12 @@ export default function Capture() {
           </div>
         </div>
 
-        {/* Everything else — spot type, a note (or a spoken version of
-            it), and the first bird's species — is real but secondary.
-            Species in particular is demoted on purpose: which bird it was
-            matters less here than what it was doing. Labeled as
-            continuing to look, not adding data — "Add details" reads
-            like productivity software; this is the same act of noticing,
-            just closer. */}
+        {/* Everything else — a note (or a spoken version of it) and the
+            first bird's species — is real but secondary. Species in
+            particular is demoted on purpose: which bird it was matters
+            less here than what it was doing. Labeled as continuing to
+            look, not adding data — "Add details" reads like productivity
+            software; this is the same act of noticing, just closer. */}
         <button
           type="button"
           onClick={() => setShowDetails(v => !v)}
@@ -711,29 +794,7 @@ export default function Capture() {
         </button>
 
         {showDetails && (
-          <div className="space-y-3 rounded-xl border border-border bg-card p-3">
-            {!targetSpotId && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">What kind of spot is this?</p>
-                <p className="mb-1.5 text-[11px] text-muted-foreground">The place itself, not today's water condition</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(SPOT_TYPE_LABELS).map(([key, label]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setSpotType(key as SpotType)}
-                      className={cn(
-                        "rounded-full border px-3 py-1 text-xs",
-                        spotType === key ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
+          <div className="space-y-3 border-t border-border/50 pt-3">
             <div>
               <div className="mb-1.5 flex items-center justify-between">
                 <p className="text-xs font-medium text-muted-foreground">Note</p>
@@ -779,50 +840,60 @@ export default function Capture() {
         )}
       </div>
 
-      {/* Sticky, so Save is one tap away no matter how much of the
-          optional section above is expanded or scrolled past. Not being
-          signed in doesn't block the photo/note above — it only changes
-          what this button does. */}
-      <div className="fixed inset-x-0 bottom-20 z-40 mx-auto max-w-md px-4">
-        <div className="relative">
+      {/* Sticky, so the action is one tap away no matter how much of the
+          optional section above is expanded or scrolled past. Signing in
+          is a different action entirely (it leaves the app) from leaving
+          a memory, so it keeps its own labeled button; the memory-leaving
+          gesture itself is an icon, never a word — see docs/design/
+          02_CAPTURE_SCREEN.md, "Interaction": avoid Save/Submit/Done, and
+          "the action should feel like gently placing a memory down." */}
+      <div className="fixed inset-x-0 bottom-20 z-40 mx-auto flex max-w-md flex-col items-center px-4">
+        {!isAuthenticated ? (
           <Button
-            className="w-full shadow-lg"
+            className="shadow-lg"
             size="lg"
-            disabled={busy || saved || authLoading || (isAuthenticated && !canSubmit) || (!isAuthenticated && !loginUrl)}
-            onClick={e => {
-              // A tap here should feel like a drop landing on still
-              // water, not a button press — see
-              // docs/03_DESIGN_MANIFESTO.md §7. Ring color reads from the
-              // button's own computed style so it follows light/dark
-              // automatically; spawnRipple no-ops under reduced motion.
-              if (rippleOriginRef.current) {
-                const rect = e.currentTarget.getBoundingClientRect();
-                rippleOriginRef.current.style.left = `${e.clientX - rect.left}px`;
-                rippleOriginRef.current.style.top = `${e.clientY - rect.top}px`;
-                const color = getComputedStyle(e.currentTarget).getPropertyValue("--primary-foreground").trim();
-                spawnRipple(rippleOriginRef.current, color || "#fff");
-              }
-              if (!isAuthenticated) {
-                if (loginUrl) window.open(loginUrl, "_blank", "noopener,noreferrer");
-                return;
-              }
-              handleSubmit();
+            disabled={authLoading || !loginUrl}
+            onClick={() => {
+              if (loginUrl) window.open(loginUrl, "_blank", "noopener,noreferrer");
             }}
           >
-            {saved ? (
-              "This place now holds this moment."
-            ) : busy || authLoading ? (
-              <Spinner className="h-4 w-4" />
-            ) : !isAuthenticated ? (
-              loginUrl ? "Sign in to save" : "Sign-in unavailable"
-            ) : locating ? (
-              <Spinner className="h-4 w-4" />
-            ) : (
-              "Save moment"
-            )}
+            {authLoading ? <Spinner className="h-4 w-4" /> : loginUrl ? "Sign in to save" : "Sign-in unavailable"}
           </Button>
-          <div ref={rippleOriginRef} className="pointer-events-none absolute h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full" />
-        </div>
+        ) : saved ? (
+          // The spec's own completion line (docs/design/
+          // 02_CAPTURE_SCREEN.md, "Completion") — text here, not inside a
+          // button, since the gesture is already done; this is the quiet
+          // acknowledgment that follows it, faded in via .settle-in.
+          <p className="settle-in px-6 text-center font-display text-base text-foreground">This place now holds this moment.</p>
+        ) : (
+          <div className="relative">
+            <button
+              type="button"
+              aria-label="Leave this moment here"
+              disabled={busy || authLoading || !canSubmit}
+              onClick={e => {
+                // A tap here should feel like a drop landing on still
+                // water, not a button press — see
+                // docs/03_DESIGN_MANIFESTO.md §7. Ring color reads from
+                // the button's own computed style so it follows
+                // light/dark automatically; spawnRipple no-ops under
+                // reduced motion.
+                if (rippleOriginRef.current) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  rippleOriginRef.current.style.left = `${e.clientX - rect.left}px`;
+                  rippleOriginRef.current.style.top = `${e.clientY - rect.top}px`;
+                  const color = getComputedStyle(e.currentTarget).getPropertyValue("--primary-foreground").trim();
+                  spawnRipple(rippleOriginRef.current, color || "#fff");
+                }
+                handleSubmit();
+              }}
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-95 disabled:opacity-50"
+            >
+              {busy || authLoading || locating ? <Spinner className="h-5 w-5" /> : <Droplets className="h-6 w-6" />}
+            </button>
+            <div ref={rippleOriginRef} className="pointer-events-none absolute h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full" />
+          </div>
+        )}
         {!isAuthenticated && !authLoading && (
           <p className="mt-2 text-center text-xs text-muted-foreground">
             {loginUrl
