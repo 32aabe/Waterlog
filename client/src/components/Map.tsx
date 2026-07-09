@@ -20,8 +20,8 @@
  * - Attaches to map using { map, position }
  * new google.maps.marker.AdvancedMarkerElement({
  *   map,
- *   position: { lat: 37.7749, lng: -122.4194 },
- *   title: "San Francisco",
+ *   position: { lat: 40.7027, lng: -73.9963 },
+ *   title: "Brooklyn Bridge Park",
  * });
  *
  * -------------------------------
@@ -79,6 +79,7 @@
 import { useEffect, useRef } from "react";
 import { usePersistFn } from "@/hooks/usePersistFn";
 import { cn } from "@/lib/utils";
+import { AIR_STUDY_AREA_CENTER, AIR_STUDY_AREA_ZOOM } from "@/lib/demoSpots";
 
 declare global {
   interface Window {
@@ -161,8 +162,8 @@ interface MapViewProps {
 
 export function MapView({
   className,
-  initialCenter = { lat: 37.7749, lng: -122.4194 },
-  initialZoom = 12,
+  initialCenter = AIR_STUDY_AREA_CENTER,
+  initialZoom = AIR_STUDY_AREA_ZOOM,
   onMapReady,
   mapStyles,
 }: MapViewProps) {

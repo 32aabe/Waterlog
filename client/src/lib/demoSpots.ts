@@ -8,6 +8,19 @@ import type { SpotSummary } from "../../../server/db";
 // time (no server code — no DB access, no Express — ends up in the
 // client bundle); only the shape is shared, never the implementation.
 
+// The AIR study area's default map center/zoom — used wherever the app
+// used to fall back to a hardcoded San Francisco default (components/
+// Map.tsx's own MapView default, and MapHome's initialCenter when there's
+// no user location yet). The midpoint of the two real spot clusters below
+// (Brooklyn Bridge Park's piers, ~40.702/-73.996; Civic Center/Pace,
+// ~40.715/-74.002), not an arbitrary landmark coordinate, so it stays
+// correct if the seeded spots themselves ever move. Zoom picked so both
+// clusters (~1.5km apart) sit comfortably inside a typical phone-width
+// map card with margin, rather than either being cropped or the markers
+// crowding together too small to tap individually.
+export const AIR_STUDY_AREA_CENTER = { lat: 40.7087, lng: -73.9994 };
+export const AIR_STUDY_AREA_ZOOM = 13.4;
+
 export type DemoSpot = SpotSummary & {
   /** A short, static description — DemoSpotDetail.tsx's substitute for
    *  MapHome's spotSentence()/SpotStory's placeCharacterSentence(), both

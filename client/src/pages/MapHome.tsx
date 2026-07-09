@@ -12,7 +12,7 @@ import { getLoginUrl } from "@/const";
 import { APP_NAME, APP_TAGLINE, getSpotTypeLabel } from "@/const";
 import { spawnRipple } from "@/lib/ripple";
 import { markColor, markCoreColor, markPresence, relationshipDepth, rippleMarkMetrics, PULSING_WATER_STATES } from "@/lib/spotVisual";
-import { isDemoSpotId } from "@/lib/demoSpots";
+import { isDemoSpotId, AIR_STUDY_AREA_CENTER, AIR_STUDY_AREA_ZOOM } from "@/lib/demoSpots";
 import { LocateFixed, Plus, Waves } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SpotSummary } from "../../../server/db";
@@ -165,9 +165,9 @@ export default function MapHome() {
 
   // Resolve the visitor's own location (once, briefly) so the map opens
   // centered on somewhere that means something to them, rather than
-  // always defaulting to San Francisco. Falls back to an existing spot,
-  // then to the map component's own default, if location isn't available.
-  // Deliberately requested *before* the Maps script below — see
+  // always defaulting to the AIR study area (see AIR_STUDY_AREA_CENTER in
+  // lib/demoSpots.ts, also the map component's own default). Deliberately
+  // requested *before* the Maps script below — see
   // useGoogleMapsAvailable's own comment: loading the Maps SDK
   // concurrently with this used to starve the geolocation callback of
   // main-thread time for several seconds, making it look like a timeout
@@ -198,7 +198,7 @@ export default function MapHome() {
     }
     const timeout = setTimeout(() => {
       console.error(
-        "[MapHome] geolocation never called back within 10s — the browser neither returned a position nor an error. Often caused by an insecure context (http, not https/localhost) or the request silently hanging. Falling back to a seeded spot's location.",
+        "[MapHome] geolocation never called back within 10s — the browser neither returned a position nor an error. Often caused by an insecure context (http, not https/localhost) or the request silently hanging. Falling back to the AIR study area.",
       );
       setLocationSettled(true);
     }, 10000);
@@ -215,7 +215,7 @@ export default function MapHome() {
             : err.code === err.POSITION_UNAVAILABLE
               ? "location unavailable — check that OS-level location services are turned on"
               : "location request timed out";
-        console.error(`[MapHome] geolocation failed (${reason}, code ${err.code}${err.message ? ` — ${err.message}` : ""}). Falling back to a seeded spot's location.`);
+        console.error(`[MapHome] geolocation failed (${reason}, code ${err.code}${err.message ? ` — ${err.message}` : ""}). Falling back to the AIR study area.`);
         setLocationSettled(true);
         clearTimeout(timeout);
       },
@@ -305,6 +305,20 @@ export default function MapHome() {
     }
   }, [userCoords, mapReady]);
 
+  // Requirement: if geolocation succeeds, the map moves smoothly to the
+  // visitor's location; otherwise it stays on the AIR study area (see
+  // initialCenter below). initialCenter only ever applies at MapView's
+  // *construction* — a geolocation fix that arrives after that first
+  // paint wouldn't otherwise move an already-live map. panTo (not
+  // setCenter) for the same water-like easing as the manual recenter
+  // button below, whose own panTo call this is a harmless duplicate of
+  // when userCoords changes from that button rather than the initial fix.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !userCoords) return;
+    map.panTo(userCoords);
+  }, [userCoords, mapReady]);
+
   // Re-plot markers whenever the spot list (or the map itself) changes,
   // rather than only once at map-ready time — spots.list can resolve
   // after the map finishes loading its script. No-ops entirely when
@@ -364,8 +378,15 @@ export default function MapHome() {
     });
   }, [spots, mapReady]);
 
-  const initialCenter =
-    userCoords ?? (spots && spots.length > 0 ? { lat: Number(spots[0].latitude), lng: Number(spots[0].longitude) } : undefined);
+  // The visitor's own location if geolocation succeeded; otherwise the
+  // fixed AIR study area (see AIR_STUDY_AREA_CENTER in lib/demoSpots.ts —
+  // also MapView's own default, so this is belt-and-suspenders, not the
+  // only place it's set). Deliberately not the first real spot's
+  // location: that would make the initial view arbitrary and unstable
+  // (whichever spot happens to load first), where the study area is
+  // fixed and meaningful regardless of what the server does or doesn't
+  // return.
+  const initialCenter = userCoords ?? AIR_STUDY_AREA_CENTER;
 
   // null in local dev / mobile-LAN preview, where OAuth isn't configured
   // — the map (and everything else) still renders, sign-in just isn't
@@ -415,7 +436,7 @@ export default function MapHome() {
               className="h-full w-full"
               initialCenter={initialCenter}
               onMapReady={handleMapReady}
-              initialZoom={12.85}
+              initialZoom={AIR_STUDY_AREA_ZOOM}
               mapStyles={WATERLOG_MAP_STYLE}
             />
             <button
