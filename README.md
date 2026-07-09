@@ -166,7 +166,14 @@ set these environment variables in Railway:
 | --- | --- |
 | `NODE_ENV` | `production` |
 | `WATERLOG_DEMO_MODE` | `true` |
+| `VITE_WATERLOG_DEMO_MODE` | `true` |
 | `VITE_GOOGLE_MAPS_API_KEY` | your Maps JS API key, HTTP-referrer-restricted to the Railway domain |
+
+`WATERLOG_DEMO_MODE` and `VITE_WATERLOG_DEMO_MODE` must both be set —
+the server-side flag opts out of requiring a real database/OAuth (see
+above), the client-side one keeps the Map screen fixed on the NYC study
+area and stops it from requesting/showing a reviewer's own location (see
+`DEMO_MODE` in `client/src/lib/demoSpots.ts`).
 
 Leave `DATABASE_URL` and `OAUTH_SERVER_URL` unset. Build/start commands
 are the existing `pnpm build` / `pnpm start` (`server/_core/index.ts`

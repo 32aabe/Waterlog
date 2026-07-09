@@ -66,7 +66,7 @@ export default function Journal() {
           Manifesto §4, "recognition across time"). No border: a tint is
           enough to say "this one's different," without becoming a card. */}
       {onThisDay && (
-        <div className="ml-8 mr-4 mb-5 overflow-hidden rounded-xl bg-secondary">
+        <div className="mx-5 mb-5 overflow-hidden rounded-xl bg-secondary">
           <div className="flex items-center gap-1.5 px-4 pt-3 text-xs font-medium text-primary">
             <Sparkles className="h-3.5 w-3.5" />
             On this day, {onThisDayYearsAgo} year{onThisDayYearsAgo === 1 ? "" : "s"} ago
@@ -86,7 +86,7 @@ export default function Journal() {
         </div>
       )}
 
-      <div className="ml-8 mr-4">
+      <div className="px-5">
         {isLoading && (
           <div className="flex justify-center py-10">
             <Spinner />
@@ -120,7 +120,7 @@ export default function Journal() {
             and the next begins. */}
         {dayGroups.map(group => (
           <div key={group.key} className="mb-16">
-            <p className="mb-6 pl-5 font-display text-2xl leading-tight text-foreground">
+            <p className="mb-6 font-display text-2xl leading-tight text-foreground">
               {dayHeaderLabel(group.date)}
             </p>
             <div>
@@ -131,10 +131,10 @@ export default function Journal() {
                   <button
                     key={moment.id}
                     onClick={() => navigate(`/spot/${moment.spotId}`)}
-                    className={cn("block w-full pl-5 text-left", i > 0 && gapClass)}
+                    className={cn("block w-full text-left", i > 0 && gapClass)}
                   >
                     {moment.note && (
-                      <p className="font-display text-lg leading-relaxed text-foreground">{moment.note}</p>
+                      <p className="break-words font-display text-lg leading-relaxed text-foreground">{moment.note}</p>
                     )}
                     {moment.photoUrls[0] && (
                       <img
@@ -143,7 +143,7 @@ export default function Journal() {
                         className={cn("h-12 w-12 rounded-lg object-cover", moment.note && "mt-2")}
                       />
                     )}
-                    <p className={cn("text-[11px] text-muted-foreground/70", (moment.note || moment.photoUrls[0]) && "mt-2")}>
+                    <p className={cn("break-words text-[11px] text-muted-foreground/70", (moment.note || moment.photoUrls[0]) && "mt-2")}>
                       {metaLine(moment.spot?.name, moment.capturedAt, moment.sightings)}
                     </p>
                   </button>

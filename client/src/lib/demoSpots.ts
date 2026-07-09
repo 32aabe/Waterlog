@@ -21,6 +21,16 @@ import type { SpotSummary } from "../../../server/db";
 export const AIR_STUDY_AREA_CENTER = { lat: 40.7087, lng: -73.9994 };
 export const AIR_STUDY_AREA_ZOOM = 13.4;
 
+// Client-side mirror of the server's WATERLOG_DEMO_MODE (see ENV.demoMode
+// in server/_core/env.ts) — a separate VITE_-prefixed variable because the
+// server's own env vars aren't exposed to the browser bundle. Deploying a
+// demo must set both WATERLOG_DEMO_MODE=true and VITE_WATERLOG_DEMO_MODE=true
+// (see README's Railway table); this one gates MapHome's use of real
+// browser geolocation — off in demo mode so the map stays fixed on the
+// NYC study area and never shows a real visitor's location, regardless of
+// where the phone actually is.
+export const DEMO_MODE = import.meta.env.VITE_WATERLOG_DEMO_MODE === "true";
+
 export type DemoSpot = SpotSummary & {
   /** A short, static description — DemoSpotDetail.tsx's substitute for
    *  MapHome's spotSentence()/SpotStory's placeCharacterSentence(), both

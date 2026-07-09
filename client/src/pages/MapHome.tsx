@@ -12,7 +12,7 @@ import { getLoginUrl } from "@/const";
 import { APP_NAME, APP_TAGLINE, getSpotTypeLabel } from "@/const";
 import { spawnRipple } from "@/lib/ripple";
 import { markColor, markCoreColor, markPresence, relationshipDepth, rippleMarkMetrics, PULSING_WATER_STATES } from "@/lib/spotVisual";
-import { isDemoSpotId, AIR_STUDY_AREA_CENTER, AIR_STUDY_AREA_ZOOM } from "@/lib/demoSpots";
+import { isDemoSpotId, AIR_STUDY_AREA_CENTER, AIR_STUDY_AREA_ZOOM, DEMO_MODE } from "@/lib/demoSpots";
 import { LocateFixed, Plus, Waves } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SpotSummary } from "../../../server/db";
@@ -191,6 +191,15 @@ export default function MapHome() {
   const [isLocating, setIsLocating] = useState(false);
 
   const requestLocation = useCallback(() => {
+    if (DEMO_MODE) {
+      // Never requests real geolocation in demo mode — the map stays on
+      // the fixed AIR study area (see initialCenter below) and a
+      // reviewer is never shown a permission prompt for it. locationSettled
+      // still flips so the map mounts immediately rather than waiting on
+      // a request that will never happen.
+      setLocationSettled(true);
+      return;
+    }
     if (!navigator.geolocation) {
       console.error("[MapHome] navigator.geolocation is unavailable — unsupported browser, or a non-secure context (must be https, or localhost).");
       setLocationSettled(true);
@@ -252,6 +261,16 @@ export default function MapHome() {
   // directly. panTo (not setCenter) so the move eases like water rather
   // than snapping, per docs/design/01_MAP_SCREEN.md's motion principles.
   const handleLocateClick = useCallback(() => {
+    if (DEMO_MODE) {
+      // Returns to the fixed NYC study area, never the reviewer's real
+      // location — the button still exists and still gives feedback (a
+      // brief pulse, matching the real-geolocation branch's rhythm below)
+      // even though there's no real request to wait on.
+      setIsLocating(true);
+      mapRef.current?.panTo(AIR_STUDY_AREA_CENTER);
+      setTimeout(() => setIsLocating(false), 400);
+      return;
+    }
     if (!navigator.geolocation) {
       console.error("[MapHome] navigator.geolocation is unavailable — unsupported browser, or a non-secure context (must be https, or localhost).");
       return;
@@ -288,10 +307,14 @@ export default function MapHome() {
   // rather than duplicating marker-creation logic in both places. Only
   // moves an existing marker's .position after the first fix; no need to
   // ever recreate it, unlike the spot markers below which do get rebuilt
-  // (their list itself changes, not just one coordinate).
+  // (their list itself changes, not just one coordinate). Explicitly
+  // excluded in demo mode — userCoords should never actually be non-null
+  // there (requestLocation/handleLocateClick both skip real geolocation),
+  // but this guard makes "never show the reviewer's real location marker"
+  // true by construction rather than by relying on that invariant holding.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapReady || !userCoords || !window.google?.maps?.marker) return;
+    if (DEMO_MODE || !map || !mapReady || !userCoords || !window.google?.maps?.marker) return;
 
     if (userMarkerRef.current) {
       userMarkerRef.current.position = userCoords;
@@ -313,9 +336,12 @@ export default function MapHome() {
   // setCenter) for the same water-like easing as the manual recenter
   // button below, whose own panTo call this is a harmless duplicate of
   // when userCoords changes from that button rather than the initial fix.
+  // Excluded in demo mode for the same reason as the marker effect above
+  // — the map must stay fixed on the study area, never recentered onto a
+  // real visitor location.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapReady || !userCoords) return;
+    if (DEMO_MODE || !map || !mapReady || !userCoords) return;
     map.panTo(userCoords);
   }, [userCoords, mapReady]);
 
@@ -386,7 +412,7 @@ export default function MapHome() {
   // (whichever spot happens to load first), where the study area is
   // fixed and meaningful regardless of what the server does or doesn't
   // return.
-  const initialCenter = userCoords ?? AIR_STUDY_AREA_CENTER;
+  const initialCenter = DEMO_MODE ? AIR_STUDY_AREA_CENTER : (userCoords ?? AIR_STUDY_AREA_CENTER);
 
   // null in local dev / mobile-LAN preview, where OAuth isn't configured
   // — the map (and everything else) still renders, sign-in just isn't
