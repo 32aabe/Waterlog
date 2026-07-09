@@ -449,8 +449,8 @@ export default function MapHome() {
 
       {spots && spots.length === 0 && !isLoading && (
         <div className="mx-4 mt-4 rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">
-          Still quiet here. Maps like this fill in slowly — one noticed place at a
-          time.
+          AIR demo places are ready. These are the water sites observed
+          around Brooklyn Bridge Park and Pace.
         </div>
       )}
 

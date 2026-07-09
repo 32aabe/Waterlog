@@ -49,174 +49,189 @@ export async function seedDemoData(): Promise<{ spots: number; moments: number }
     momentCount++;
   };
 
-  // --- Spot 1: a puddle with a year of history, for "On this day" ---
-  const puddle = await db.createSpot({
+  // The AIR project's actual observation sites, not placeholder names —
+  // two real-world clusters (Brooklyn Bridge Park's piers, and the
+  // Foley Square/Civic Center blocks near Pace University and City Hall,
+  // themselves built over the historic Collect Pond that Collect Pond
+  // Park now commemorates) so both the real map and MapFallback's
+  // cluster layout (see components/MapFallback.tsx) center on the same
+  // two neighborhoods a reviewer would recognize.
+
+  // --- Spot 1: Pier 1 Bridge View Pond — a year of history, for "On
+  // this day" ---
+  const bridgeViewPond = await db.createSpot({
     creatorId: user.id,
-    name: "Puddle by the bus stop",
-    latitude: 37.7752,
-    longitude: -122.4196,
-    spotType: "puddle",
+    name: "Pier 1 Bridge View Pond",
+    latitude: 40.7027,
+    longitude: -73.9963,
+    placeName: "Brooklyn Bridge Park",
+    spotType: "pond",
     createdAt: daysAgo(400),
   });
-  if (puddle) {
+  if (bridgeViewPond) {
     await createMoment({
-      spotId: puddle.id,
+      spotId: bridgeViewPond.id,
       userId: user.id,
       waterCondition: "full",
-      note: "First time noticing this one — a sparrow was already using it.",
+      note: "First time noticing this one — a sparrow was already using it, with the Brooklyn Bridge right behind it.",
       sightings: [{ species: "House Sparrow", behaviors: ["Drinking"] }],
-      photoUrls: [placeholderPhoto(205, "Puddle")],
+      photoUrls: [placeholderPhoto(205, "Bridge View")],
       weather: "Partly cloudy",
       capturedAt: sameDayLastYear(10),
     });
     await createMoment({
-      spotId: puddle.id,
+      spotId: bridgeViewPond.id,
       userId: user.id,
       waterCondition: "full",
-      note: "Still here, still popular.",
-      sightings: [{ species: "House Sparrow", behaviors: ["Drinking", "Bathing"] }],
-      photoUrls: [placeholderPhoto(205, "Puddle")],
+      note: "Still here, still popular — a gull dropped in to bathe.",
+      sightings: [{ species: "Ring-billed Gull", behaviors: ["Bathing"] }],
+      photoUrls: [placeholderPhoto(205, "Bridge View")],
       weather: "Sunny",
       capturedAt: daysAgo(0, 3),
     });
   }
 
-  // --- Spot 2: a fountain, multi-sighting + a second visit ---
-  const fountain = await db.createSpot({
+  // --- Spot 2: Pier 1 Long Pond — multi-sighting + a second visit ---
+  const longPond = await db.createSpot({
     creatorId: user.id,
-    name: "Fountain at the park",
-    latitude: 37.7738,
-    longitude: -122.4213,
-    spotType: "fountain",
+    name: "Pier 1 Long Pond",
+    latitude: 40.7032,
+    longitude: -73.997,
+    placeName: "Brooklyn Bridge Park",
+    spotType: "pond",
     createdAt: daysAgo(15),
   });
-  if (fountain) {
+  if (longPond) {
     await createMoment({
-      spotId: fountain.id,
+      spotId: longPond.id,
       userId: user.id,
       waterCondition: "full",
-      note: "Busy little fountain today — at least two regulars stopped by.",
+      note: "Busy stretch of water today — at least two regulars stopped by.",
       sightings: [
         { species: "European Starling", behaviors: ["Bathing", "Drinking"] },
-        { species: "Rock Pigeon", behaviors: ["Wading"] },
+        { species: "Rock Pigeon", behaviors: ["Foraging"] },
       ],
-      photoUrls: [placeholderPhoto(150, "Fountain")],
+      photoUrls: [placeholderPhoto(170, "Long Pond")],
       weather: "Sunny",
       capturedAt: daysAgo(0, 2),
     });
     await createMoment({
-      spotId: fountain.id,
+      spotId: longPond.id,
       userId: user.id,
       waterCondition: "full",
-      sightings: [{ species: "House Finch", behaviors: ["Preening"] }],
+      sightings: [{ species: "Mallard", behaviors: ["Resting"] }],
       weather: "Overcast",
       capturedAt: daysAgo(1),
     });
   }
 
-  // --- Spot 3: a pond that dried up (lifecycle: "dry") — two moments so
-  // the Story shows a real before/after arc, not a single data point.
-  const pond = await db.createSpot({
+  // --- Spot 3: Pier 2 Intertidal Rocky Shore — tide out, then tide back
+  // in (lifecycle: "reawakened") ---
+  const rockyShore = await db.createSpot({
     creatorId: user.id,
-    name: "Pond behind the library",
-    latitude: 37.7761,
-    longitude: -122.4177,
-    spotType: "pond",
-    createdAt: daysAgo(60),
-  });
-  if (pond) {
-    await createMoment({
-      spotId: pond.id,
-      userId: user.id,
-      waterCondition: "full",
-      note: "Full and calm — a heron was working the edge of it.",
-      sightings: [{ species: "Great Blue Heron", behaviors: ["Wading"] }],
-      photoUrls: [placeholderPhoto(195, "Pond")],
-      weather: "Clear",
-      capturedAt: daysAgo(30),
-    });
-    await createMoment({
-      spotId: pond.id,
-      userId: user.id,
-      waterCondition: "dry",
-      note: "Completely dried up this week — no birds around it anymore.",
-      weather: "Hot, clear",
-      capturedAt: daysAgo(10),
-    });
-  }
-
-  // --- Spot 4: a drainage channel that came back (lifecycle: "reawakened") ---
-  const drainage = await db.createSpot({
-    creatorId: user.id,
-    name: "Drainage ditch on Elm St",
-    latitude: 37.7729,
-    longitude: -122.4159,
-    spotType: "drainage",
+    name: "Pier 2 Intertidal Rocky Shore",
+    latitude: 40.7008,
+    longitude: -73.9954,
+    placeName: "Brooklyn Bridge Park",
+    spotType: "wetland",
     createdAt: daysAgo(45),
   });
-  if (drainage) {
+  if (rockyShore) {
     await createMoment({
-      spotId: drainage.id,
+      spotId: rockyShore.id,
       userId: user.id,
       waterCondition: "dry",
-      note: "Nothing here — bone dry.",
+      note: "Low tide — the rocks are fully exposed, just a cormorant drying its wings out there.",
+      sightings: [{ species: "Double-crested Cormorant", behaviors: ["Resting"] }],
       weather: "Clear",
       capturedAt: daysAgo(10),
     });
     await createMoment({
-      spotId: drainage.id,
+      spotId: rockyShore.id,
       userId: user.id,
       waterCondition: "full",
-      note: "Rained overnight and the ditch filled back up — a mallard found it within the hour.",
-      sightings: [{ species: "Mallard", behaviors: ["Drinking", "Wading"] }],
-      photoUrls: [placeholderPhoto(200, "Ditch")],
-      weather: "Rain overnight, clearing",
+      note: "Tide's back in and covering the rocks — a heron was working the new waterline within the hour.",
+      sightings: [{ species: "Great Blue Heron", behaviors: ["Foraging"] }],
+      photoUrls: [placeholderPhoto(160, "Rocky Shore")],
+      weather: "Clear",
       capturedAt: daysAgo(0),
     });
   }
 
-  // --- Spot 5: a container spot demonstrating an ice condition + a birdless check ---
-  const container = await db.createSpot({
+  // --- Spot 4: Foley Square — a plaza puddle over what was once the
+  // edge of the historic Collect Pond watershed (lifecycle: "dry") ---
+  const foleySquare = await db.createSpot({
     creatorId: user.id,
-    name: "Water dish in community garden",
-    latitude: 37.7745,
-    longitude: -122.4231,
-    spotType: "container",
+    name: "Foley Square",
+    latitude: 40.7141,
+    longitude: -74.0021,
+    placeName: "Civic Center, Manhattan",
+    spotType: "puddle",
+    createdAt: daysAgo(20),
+  });
+  if (foleySquare) {
+    await createMoment({
+      spotId: foleySquare.id,
+      userId: user.id,
+      waterCondition: "dry",
+      note: "Plaza's bone dry today — no pooling since the last rain, no birds around it.",
+      weather: "Clear",
+      capturedAt: daysAgo(6),
+    });
+  }
+
+  // --- Spot 5: Thomas Paine Park — receding after rain (lifecycle:
+  // "drying"), the one lifecycle state none of the spots above show ---
+  const thomasPainePark = await db.createSpot({
+    creatorId: user.id,
+    name: "Thomas Paine Park",
+    latitude: 40.7146,
+    longitude: -74.0027,
+    placeName: "Civic Center, Manhattan",
+    spotType: "temporary_pool",
+    createdAt: daysAgo(20),
+  });
+  if (thomasPainePark) {
+    await createMoment({
+      spotId: thomasPainePark.id,
+      userId: user.id,
+      waterCondition: "receding",
+      note: "Water's dropped a lot since I last checked — a sparrow still stopped to drink from what's left.",
+      sightings: [{ species: "House Sparrow", behaviors: ["Drinking"] }],
+      weather: "Clear",
+      capturedAt: daysAgo(4),
+    });
+  }
+
+  // --- Spot 6: Collect Pond Park — the historic pond itself, newest and
+  // richest spot ---
+  const collectPondPark = await db.createSpot({
+    creatorId: user.id,
+    name: "Collect Pond Park",
+    latitude: 40.7168,
+    longitude: -74.0026,
+    placeName: "Civic Center, Manhattan",
+    spotType: "pond",
     createdAt: daysAgo(5),
   });
-  if (container) {
+  if (collectPondPark) {
     await createMoment({
-      spotId: container.id,
+      spotId: collectPondPark.id,
       userId: user.id,
-      waterCondition: "frozen",
-      note: "Frozen solid this morning — checked, no visitors.",
-      weather: "Cold, clear",
+      waterCondition: "full",
+      note: "The reflecting pool on the site of the old Collect Pond — a goose and a mallard were both working it.",
+      sightings: [
+        { species: "Canada Goose", behaviors: ["Swimming"] },
+        { species: "Mallard", behaviors: ["Foraging"] },
+      ],
+      photoUrls: [placeholderPhoto(195, "Collect Pond")],
+      weather: "Sunny",
       capturedAt: daysAgo(0, 1),
     });
   }
 
-  // --- Spot 6: a rain barrel slowing down (lifecycle: "drying") — the
-  // one lifecycle state none of the spots above demonstrate: a last
-  // check over a week ago, water still present but not yet "dry". ---
-  const rainBarrel = await db.createSpot({
-    creatorId: user.id,
-    name: "Rain barrel behind the shed",
-    latitude: 37.7744,
-    longitude: -122.4188,
-    spotType: "container",
-    createdAt: daysAgo(20),
-  });
-  if (rainBarrel) {
-    await createMoment({
-      spotId: rainBarrel.id,
-      userId: user.id,
-      waterCondition: "receding",
-      note: "Water's dropped a lot since I last checked — hasn't rained in a while.",
-      weather: "Clear",
-      capturedAt: daysAgo(10),
-    });
-  }
-
-  const spots = [puddle, fountain, pond, drainage, container, rainBarrel].filter(Boolean).length;
+  const spots = [bridgeViewPond, longPond, rockyShore, foleySquare, thomasPainePark, collectPondPark].filter(
+    Boolean,
+  ).length;
   return { spots, moments: momentCount };
 }
