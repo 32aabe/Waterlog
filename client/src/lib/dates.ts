@@ -1,6 +1,11 @@
-/** "Today" / "Yesterday" / weekday / full date — a diary reads by day, not by ISO timestamp. */
-export function dayHeaderLabel(date: Date): string {
-  const now = new Date();
+/**
+ * "Today" / "Yesterday" / weekday / full date — a diary reads by day, not
+ * by ISO timestamp. `now` defaults to the real clock; callers displaying
+ * demo data pass demoAwareNow() (see lib/demoSpots.ts) instead, so "Today"
+ * means the frozen demo reference date, not whenever the demo happens to
+ * be viewed.
+ */
+export function dayHeaderLabel(date: Date, now: Date = new Date()): string {
   const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const diffDays = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000);
 
@@ -55,10 +60,11 @@ export function groupByDay<T extends { capturedAt: string | Date }>(
  * The most recent moment captured on this same month/day in a prior year
  * — the seed of "on this day" memory browsing. Returns null gracefully
  * when there's no history yet, which is the common case for a new
- * account; the callout that uses this should simply not render then.
+ * account; the callout that uses this should simply not render then. `now`
+ * defaults to the real clock — see dayHeaderLabel's comment above on why
+ * demo callers pass demoAwareNow() instead.
  */
-export function findOnThisDay<T extends { capturedAt: string | Date }>(items: T[]): T | null {
-  const now = new Date();
+export function findOnThisDay<T extends { capturedAt: string | Date }>(items: T[], now: Date = new Date()): T | null {
   return (
     items.find(item => {
       const d = new Date(item.capturedAt);

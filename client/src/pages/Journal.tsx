@@ -4,10 +4,11 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistance } from "date-fns";
 import { Plus, Sparkles } from "lucide-react";
 import { formatSighting } from "@/const";
 import { dayHeaderLabel, groupByDay, findOnThisDay } from "@/lib/dates";
+import { demoAwareNow } from "@/lib/demoSpots";
 import { cn } from "@/lib/utils";
 
 // One quiet line supporting the note above it — place, time, and any
@@ -17,7 +18,7 @@ function metaLine(
   capturedAt: string | Date,
   sightings: Array<{ species: string | null; behaviors: string[] }>,
 ): string {
-  const parts = [spotName || "A water spot", formatDistanceToNow(new Date(capturedAt), { addSuffix: true })];
+  const parts = [spotName || "A water spot", formatDistance(new Date(capturedAt), demoAwareNow(), { addSuffix: true })];
   if (sightings.length > 0) {
     parts.push(sightings.map(s => formatSighting(s.species, s.behaviors)).join(" · "));
   }
@@ -36,14 +37,14 @@ export default function Journal() {
     enabled: isAuthenticated,
   });
 
-  const onThisDay = useMemo(() => (journal ? findOnThisDay(journal) : null), [journal]);
+  const onThisDay = useMemo(() => (journal ? findOnThisDay(journal, demoAwareNow()) : null), [journal]);
   // Calendar-year subtraction, not differenceInYears — that computes
   // *elapsed* time, which reads as "0 years ago" whenever today's clock
   // time hasn't yet reached last year's capture time on this same
   // month/day. findOnThisDay already guarantees a strictly earlier year,
   // so a simple calendar difference is both correct and always ≥ 1.
   const onThisDayYearsAgo = useMemo(
-    () => (onThisDay ? Math.max(1, new Date().getFullYear() - new Date(onThisDay.capturedAt).getFullYear()) : 0),
+    () => (onThisDay ? Math.max(1, demoAwareNow().getFullYear() - new Date(onThisDay.capturedAt).getFullYear()) : 0),
     [onThisDay],
   );
   const dayGroups = useMemo(() => (journal ? groupByDay(journal) : []), [journal]);
@@ -121,7 +122,7 @@ export default function Journal() {
         {dayGroups.map(group => (
           <div key={group.key} className="mb-16">
             <p className="mb-6 font-display text-2xl leading-tight text-foreground">
-              {dayHeaderLabel(group.date)}
+              {dayHeaderLabel(group.date, demoAwareNow())}
             </p>
             <div>
               {group.items.map((moment, i) => {

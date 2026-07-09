@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { formatDistanceToNow, formatDistanceToNowStrict } from "date-fns";
+import { formatDistance, formatDistanceStrict } from "date-fns";
 import { MapView } from "@/components/Map";
 import { MapFallback } from "@/components/MapFallback";
 import { useGoogleMapsAvailable } from "@/hooks/useGoogleMapsAvailable";
@@ -12,7 +12,7 @@ import { getLoginUrl } from "@/const";
 import { APP_NAME, APP_TAGLINE, getSpotTypeLabel } from "@/const";
 import { spawnRipple } from "@/lib/ripple";
 import { markColor, markCoreColor, markPresence, relationshipDepth, rippleMarkMetrics, PULSING_WATER_STATES } from "@/lib/spotVisual";
-import { isDemoSpotId, AIR_STUDY_AREA_CENTER, AIR_STUDY_AREA_ZOOM, DEMO_MODE } from "@/lib/demoSpots";
+import { isDemoSpotId, AIR_STUDY_AREA_CENTER, AIR_STUDY_AREA_ZOOM, DEMO_MODE, demoAwareNow } from "@/lib/demoSpots";
 import { LocateFixed, Plus, Waves } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SpotSummary } from "../../../server/db";
@@ -133,8 +133,9 @@ function createUserLocationMarkerContent(): HTMLDivElement {
 // (for the one moment worth marking) that it just came back. Never
 // mentions a bird; the place is always the subject.
 function spotSentence(spot: SpotSummary): string {
-  const since = formatDistanceToNow(new Date(spot.lastActivityAt), { addSuffix: true });
-  const knownFor = formatDistanceToNowStrict(new Date(spot.firstSeenAt));
+  const now = demoAwareNow();
+  const since = formatDistance(new Date(spot.lastActivityAt), now, { addSuffix: true });
+  const knownFor = formatDistanceStrict(new Date(spot.firstSeenAt), now);
   const memories = spot.momentCount === 1 ? "one memory" : `${spot.momentCount} memories`;
   const memoriesCap = memories.charAt(0).toUpperCase() + memories.slice(1);
 

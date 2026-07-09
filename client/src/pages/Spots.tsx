@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils";
 import { getSpotTypeLabel, LIFECYCLE_LABELS } from "@/const";
 import { resolveWaterStateStyle } from "@/lib/spotVisual";
 import { Search, MapPinned } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistance } from "date-fns";
+import { demoAwareNow } from "@/lib/demoSpots";
 
 const FILTERS = ["all", "alive", "drying", "dry", "reawakened"] as const;
 
@@ -82,7 +83,7 @@ export default function Spots() {
                 {spot.name || getSpotTypeLabel(spot.spotType)}
               </p>
               <p className="truncate text-xs text-muted-foreground">
-                {getSpotTypeLabel(spot.spotType)} · active {formatDistanceToNow(new Date(spot.lastActivityAt), { addSuffix: true })}
+                {getSpotTypeLabel(spot.spotType)} · active {formatDistance(new Date(spot.lastActivityAt), demoAwareNow(), { addSuffix: true })}
               </p>
             </div>
             <Badge variant="secondary" className="flex-shrink-0">

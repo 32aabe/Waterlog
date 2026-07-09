@@ -318,6 +318,37 @@ function groupObservationsIntoMoments(rows: Observation[]): MomentSummary[] {
   });
 }
 
+// Demo mode freezes lifecycle derivation's notion of "now" at a fixed
+// point inside the real AIR dataset's own observation period, instead of
+// the real server clock — see computeLifecycle below. Without this,
+// every demo spot reads "drying" simply because the real fieldwork
+// (Jan-Mar 2026) ended months before whenever the demo happens to be
+// viewed, which is true but not an interesting demo: it tells a visitor
+// nothing about how the six places actually differ from each other.
+//
+// 2026-01-22 specifically: the one moment in the whole real dataset
+// where a spot's own history shows a genuine dry -> water-returned
+// recovery is Collect Pond Park (dry on 2026-01-11, water/ice recorded
+// again on 2026-01-21 — see data/airObservations.json, unmodified).
+// Freezing "now" the morning after that second reading lets Collect Pond
+// Park read "reawakened" — a real transition, a single day "since" it
+// happened, not a fabricated one — while every other spot's own most
+// recent reading as of that same date is only 1-5 days old, so they all
+// read "alive". This is real data's actual limit, not an arbitrary
+// choice: it's the only spot, in 97 real visits across all six places,
+// that ever recorded a dry reading at all, so it's the only one that can
+// ever authentically show "dry" or "reawakened" — see the conversation
+// this was implemented in for the fuller reasoning. Never applies outside
+// demo mode: a real deployment's lifecycle always uses the real clock.
+const DEMO_LIFECYCLE_REFERENCE_DATE = new Date("2026-01-22T00:00:00Z");
+// The real dry -> recovered gap above is 10 days, not the real mode's
+// <3-day "reawakened" window — widened for demo mode only so that one
+// real transition actually clears the bar, instead of reading as a
+// coincidental "alive" that happens to follow a several-visits-old dry
+// reading.
+const DEMO_REAWAKENED_WINDOW_DAYS = 14;
+const REAL_REAWAKENED_WINDOW_DAYS = 3;
+
 /**
  * A spot's lifecycle is derived, not stored: look at its most recent
  * Moment(s) rather than a persisted state column. A spot reported "dry" is
@@ -327,23 +358,34 @@ function groupObservationsIntoMoments(rows: Observation[]): MomentSummary[] {
  * multi-sighting visit (several sibling rows) counts as one data point,
  * not several. Pure — takes every observation row for the spot; see
  * fetchSpotObservationRows for where those rows come from.
+ *
+ * In demo mode, "most recent" means most recent *as of
+ * DEMO_LIFECYCLE_REFERENCE_DATE* — rows after that are real and stay
+ * fully visible everywhere else (Journal, Spot Story, momentCount all
+ * still read every real row), just not considered when deciding this one
+ * derived status label. See DEMO_LIFECYCLE_REFERENCE_DATE's own comment
+ * for why.
  */
 function computeLifecycle(
   rows: Observation[],
   locationCreatedAt: Date,
 ): { state: LifecycleState; lastActivityAt: Date; latestWaterCondition: string | null } {
-  if (rows.length === 0) {
+  const referenceNow = ENV.demoMode ? DEMO_LIFECYCLE_REFERENCE_DATE.getTime() : Date.now();
+  const eligibleRows = ENV.demoMode ? rows.filter(r => r.createdAt.getTime() <= referenceNow) : rows;
+
+  if (eligibleRows.length === 0) {
     return { state: "alive", lastActivityAt: locationCreatedAt, latestWaterCondition: null };
   }
 
-  const moments = groupObservationsIntoMoments(rows);
+  const moments = groupObservationsIntoMoments(eligibleRows);
   const [latest, prior] = moments;
-  const daysSinceLatest = (Date.now() - new Date(latest.capturedAt).getTime()) / 86_400_000;
+  const daysSinceLatest = (referenceNow - new Date(latest.capturedAt).getTime()) / 86_400_000;
+  const reawakenedWindowDays = ENV.demoMode ? DEMO_REAWAKENED_WINDOW_DAYS : REAL_REAWAKENED_WINDOW_DAYS;
 
   if (latest.waterCondition === "dry") {
     return { state: "dry", lastActivityAt: latest.capturedAt, latestWaterCondition: latest.waterCondition };
   }
-  if (prior?.waterCondition === "dry" && daysSinceLatest < 3) {
+  if (prior?.waterCondition === "dry" && daysSinceLatest < reawakenedWindowDays) {
     return { state: "reawakened", lastActivityAt: latest.capturedAt, latestWaterCondition: latest.waterCondition };
   }
   if (daysSinceLatest > 7) {

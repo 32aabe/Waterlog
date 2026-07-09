@@ -31,6 +31,28 @@ export const AIR_STUDY_AREA_ZOOM = 13.4;
 // where the phone actually is.
 export const DEMO_MODE = import.meta.env.VITE_WATERLOG_DEMO_MODE === "true";
 
+// Must exactly match server/db.ts's DEMO_LIFECYCLE_REFERENCE_DATE. The
+// server derives each real spot's lifecycle badge (alive/dry/drying/
+// reawakened, e.g. Collect Pond Park's "reawakened") as of this frozen
+// date rather than the real clock, since the real AIR fieldwork ended in
+// March 2026 and computing against today would just read "drying"
+// everywhere. Relative-time *text* (spotSentence's "water returned X
+// ago", Spot Story's day headers, Journal's "X ago") independently calls
+// formatDistanceToNow-style date-fns helpers with the real browser
+// clock, so without this it would contradict that badge — e.g.
+// "Reawakened" paired with "water returned about 6 months ago". Use
+// demoAwareNow() below wherever code would otherwise call `new Date()` or
+// date-fns's *-ToNow variants to mean "the present."
+export const DEMO_LIFECYCLE_REFERENCE_DATE = new Date("2026-01-22T00:00:00Z");
+
+// The "present" every relative-time display should use — the frozen
+// reference date in demo mode, the real clock otherwise. A function, not
+// a constant, so "real now" is read fresh at call time rather than once
+// at module load.
+export function demoAwareNow(): Date {
+  return DEMO_MODE ? DEMO_LIFECYCLE_REFERENCE_DATE : new Date();
+}
+
 export type DemoSpot = SpotSummary & {
   /** A short, static description — DemoSpotDetail.tsx's substitute for
    *  MapHome's spotSentence()/SpotStory's placeCharacterSentence(), both

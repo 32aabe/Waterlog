@@ -1,0 +1,2188 @@
+{
+  "bridgeViewPond": {
+    "name": "Pier 1 Bridge View Pond",
+    "latitude": 40.7027,
+    "longitude": -73.9963,
+    "placeName": "Brooklyn Bridge Park",
+    "spotType": "pond",
+    "moments": [
+      {
+        "capturedAt": "2026-01-07T15:30:00",
+        "waterCondition": "frozen",
+        "note": "The pond was mostly frozen with heavy ice coverage.",
+        "weather": "Partly Cloudy, 9°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Song Sparrow",
+            "count": 5,
+            "behaviors": [
+              "Attempted Drinking",
+              "Foraging Near Water",
+              "Following Other Birds"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 3,
+            "behaviors": [
+              "Attempted Drinking"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Attempted Drinking",
+              "Drinking"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Bathing"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Bathing"
+            ]
+          },
+          {
+            "species": "European Starling",
+            "count": 4,
+            "behaviors": [
+              "Drinking"
+            ]
+          },
+          {
+            "species": "Northern Cardinal",
+            "count": 1,
+            "behaviors": [
+              "Drinking",
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-09T13:41:00",
+        "waterCondition": "partially_frozen",
+        "note": "A large amount of ice has melted—around 50%?\nObserved sparrows foraging by kicking aside fallen leaves with their feet in areas where the water flow becomes shallow.",
+        "weather": "Mostly Cloudy, 9°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Song Sparrow",
+            "count": 2,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 4,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Northern Cardinal",
+            "count": 2,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Song Sparrow",
+            "count": 3,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 4,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "European Starling",
+            "count": 1,
+            "behaviors": [
+              "Drinking"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 4,
+            "behaviors": [
+              "Drinking"
+            ]
+          },
+          {
+            "species": "Mourning Dove",
+            "count": 1,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "Northern Cardinal",
+            "count": 1,
+            "behaviors": [
+              "Attempted Drinking",
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Attempted Drinking",
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 2,
+            "behaviors": [
+              "Perching Near Water",
+              "Attempted Drinking"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-10T07:24:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Mostly Cloudy, 4°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Song Sparrow",
+            "count": 3,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 8,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Drinking"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "Song Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "Gray Catbird",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-11T07:24:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Mostly Cloudy, 6°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "House Sparrow",
+            "count": 5,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 2,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Northern Cardinal",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 2,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "American Goldfinch",
+            "count": 2,
+            "behaviors": [
+              "Perching Near Water",
+              "Foraging Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-13T14:21:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Partly Cloudy, 8°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "House Sparrow",
+            "count": 16,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Song Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Northern Cardinal",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Song Sparrow",
+            "count": 8,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "Song Sparrow",
+            "count": 2,
+            "behaviors": [
+              "Foraging Near Water",
+              "Attempted Drinking"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 2,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 5,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Drinking"
+            ]
+          },
+          {
+            "species": "Song Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Bathing"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-17T10:51:00",
+        "waterCondition": "frozen",
+        "note": null,
+        "weather": "Snow, 3°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "House Sparrow",
+            "count": 8,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-20T15:03:00",
+        "waterCondition": "frozen",
+        "note": null,
+        "weather": "Clear/Sunny, -6°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "House Sparrow",
+            "count": 16,
+            "behaviors": [
+              "Perching Near Water",
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 4,
+            "behaviors": [
+              "Perching Near Water",
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Attempted Drinking"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 3,
+            "behaviors": [
+              "Snow Ingestion"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 5,
+            "behaviors": [
+              "Snow Ingestion"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-26T11:49:00",
+        "waterCondition": "snow_ice_present",
+        "note": null,
+        "weather": "Mostly Cloudy, -4°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-01-30T13:04:00",
+        "waterCondition": "snow_ice_present",
+        "note": null,
+        "weather": "Clear/Sunny, -8°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "House Sparrow",
+            "count": 3,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Northern Cardinal",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-31T13:04:00",
+        "waterCondition": "snow_ice_present",
+        "note": null,
+        "weather": "Clear/Sunny, -8°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "House Sparrow",
+            "count": 3,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Northern Cardinal",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-03T12:52:00",
+        "waterCondition": "snow_ice_present",
+        "note": null,
+        "weather": "Partly Cloudy, -2°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "House Sparrow",
+            "count": 8,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-10T11:11:00",
+        "waterCondition": "snow_ice_present",
+        "note": null,
+        "weather": "Mostly Cloudy, -2°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-02-15T10:32:00",
+        "waterCondition": "snow_ice_present",
+        "note": null,
+        "weather": "Mostly Cloudy, 4°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "House Sparrow",
+            "count": 8,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-18T14:44:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Mostly Cloudy, 6°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "House Sparrow",
+            "count": 8,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-24T12:06:00",
+        "waterCondition": "frozen",
+        "note": null,
+        "weather": "Clear/Sunny, -2°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "House Sparrow",
+            "count": 8,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Northern Cardinal",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-28T15:14:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "8°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "House Sparrow",
+            "count": 16,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-07T13:28:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Mostly Cloudy, 7°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "House Sparrow",
+            "count": 16,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-08T13:44:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Partly Cloudy, 18°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "American Black Duck",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water",
+              "Walking Through Water",
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 8,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 2,
+            "behaviors": [
+              "Bathing"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-10T14:32:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Clear/Sunny, 21°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Red-winged Blackbird",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 2,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-13T12:47:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 5°C",
+        "photoUrl": "/demo-photos/turtle-pond-02.jpg",
+        "sightings": [
+          {
+            "species": "Mallard",
+            "count": 2,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Drinking",
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 5,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-17T12:19:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Clear/Sunny, 3°C",
+        "photoUrl": "/demo-photos/turtle-pond-01.jpg",
+        "sightings": [
+          {
+            "species": "White-throated Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 8,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "longPond": {
+    "name": "Pier 1 Long Pond",
+    "latitude": 40.7032,
+    "longitude": -73.997,
+    "placeName": "Brooklyn Bridge Park",
+    "spotType": "pond",
+    "moments": [
+      {
+        "capturedAt": "2026-01-07T15:55:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Partly Cloudy, 9°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "American Robin",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-09T14:06:00",
+        "waterCondition": "full",
+        "note": "The ice seems to have almost completely melted; fish are actively moving.\nThey appear to prefer BVP. Why might that be? There are fewer people here, and it is farther from the road.\nPartway through, a group of white-throated sparrows (WTs) suddenly gathered in large numbers.",
+        "weather": "Mostly Cloudy, 9°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Mourning Dove",
+            "count": 8,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 3,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 2,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Bathing",
+              "Foraging Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-10T07:48:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 4°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-01-11T07:47:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 6°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-01-13T14:45:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Partly Cloudy, 8°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Mourning Dove",
+            "count": 3,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Mourning Dove",
+            "count": 1,
+            "behaviors": [
+              "Foraging Near Water",
+              "Drinking"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 2,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Drinking"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-17T11:07:00",
+        "waterCondition": "frozen",
+        "note": null,
+        "weather": "Snow, 3°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "White-throated Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "Mourning Dove",
+            "count": 4,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 3,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-20T15:26:00",
+        "waterCondition": "frozen",
+        "note": null,
+        "weather": "Clear/Sunny, -6°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "White-throated Sparrow",
+            "count": 3,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Mourning Dove",
+            "count": 1,
+            "behaviors": [
+              "Snow Ingestion",
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-26T12:00:00",
+        "waterCondition": "snow_ice_present",
+        "note": null,
+        "weather": "Mostly Cloudy, -4°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-01-30T13:15:00",
+        "waterCondition": "snow_ice_present",
+        "note": null,
+        "weather": "Clear/Sunny, -8°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-01-31T13:15:00",
+        "waterCondition": "snow_ice_present",
+        "note": "A squirrel was observed consuming snow",
+        "weather": "Clear/Sunny, -8°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-02-03T13:21:00",
+        "waterCondition": "snow_ice_present",
+        "note": null,
+        "weather": "Partly Cloudy, -2°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "White-throated Sparrow",
+            "count": 8,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 2,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Northern Cardinal",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-10T11:32:00",
+        "waterCondition": "snow_ice_present",
+        "note": null,
+        "weather": "Mostly Cloudy, -2°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "White-throated Sparrow",
+            "count": 16,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "Mourning Dove",
+            "count": 4,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-15T10:48:00",
+        "waterCondition": "snow_ice_present",
+        "note": null,
+        "weather": "Mostly Cloudy, 4°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "White-throated Sparrow",
+            "count": 8,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "Northern Cardinal",
+            "count": 2,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-18T15:00:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Mostly Cloudy, 6°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "White-throated Sparrow",
+            "count": 5,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 3,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-28T15:27:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "8°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-03-07T13:40:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 7°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "American Black Duck",
+            "count": 2,
+            "behaviors": [
+              "Foraging Near Water",
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-08T14:01:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Partly Cloudy, 18°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Common Grackle",
+            "count": 1,
+            "behaviors": [
+              "Drinking"
+            ]
+          },
+          {
+            "species": "Common Grackle",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Common Grackle",
+            "count": 1,
+            "behaviors": [
+              "Bathing",
+              "Drinking"
+            ]
+          },
+          {
+            "species": "American Robin",
+            "count": 1,
+            "behaviors": [
+              "Bathing",
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Song Sparrow",
+            "count": 3,
+            "behaviors": [
+              "Bathing"
+            ]
+          },
+          {
+            "species": "Dark-eyed Junco",
+            "count": 1,
+            "behaviors": [
+              "Bathing"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-10T14:44:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Clear/Sunny, 21°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "American Robin",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Common Grackle",
+            "count": 1,
+            "behaviors": [
+              "Bathing",
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-13T13:01:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 5°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "House Sparrow",
+            "count": 5,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Mourning Dove",
+            "count": 2,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "Mourning Dove",
+            "count": 2,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 8,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "Northern Cardinal",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-17T12:33:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Clear/Sunny, 3°C",
+        "photoUrl": "/demo-photos/long-pond-01.jpg",
+        "sightings": [
+          {
+            "species": "Song Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 8,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "rockyShore": {
+    "name": "Pier 2 Intertidal Rocky Shore",
+    "latitude": 40.7008,
+    "longitude": -73.9954,
+    "placeName": "Brooklyn Bridge Park",
+    "spotType": "wetland",
+    "moments": [
+      {
+        "capturedAt": "2026-01-07T16:16:00",
+        "waterCondition": "puddle_only",
+        "note": null,
+        "weather": "Partly Cloudy, 9°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-01-09T14:37:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 9°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-01-10T08:17:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 4°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-01-11T08:18:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 6°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "American Black Duck",
+            "count": 2,
+            "behaviors": [
+              "Foraging Near Water",
+              "Perching Near Water",
+              "Following Other Birds"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-13T15:12:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Partly Cloudy, 8°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "American Black Duck",
+            "count": 2,
+            "behaviors": [
+              "Walking Through Water",
+              "Following Other Birds"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-17T11:26:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Snow, 3°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-01-20T15:43:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Clear/Sunny, -6°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-01-26T12:12:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, -4°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-01-30T13:34:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Clear/Sunny, -8°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Northern Pintail",
+            "count": 1,
+            "behaviors": [
+              "Foraging Near Water",
+              "Walking Through Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-31T13:34:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Clear/Sunny, -8°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Northern Pintail",
+            "count": 1,
+            "behaviors": [
+              "Foraging Near Water",
+              "Following Other Birds"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-03T13:44:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Partly Cloudy, -2°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-02-10T11:59:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Mostly Cloudy, -2°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Mallard",
+            "count": 3,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Brant",
+            "count": 2,
+            "behaviors": [
+              "Foraging Near Water",
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-15T11:09:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 4°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-02-18T15:15:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 6°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-02-24T12:27:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Clear/Sunny, -2°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Canada Goose",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Canada Goose",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water",
+              "Drinking",
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "Gadwall",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water",
+              "Foraging Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-28T15:43:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "8°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "American Black Duck",
+            "count": 2,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-07T13:57:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 7°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-03-08T14:23:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Partly Cloudy, 18°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-03-10T14:59:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Clear/Sunny, 21°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Mourning Dove",
+            "count": 2,
+            "behaviors": [
+              "Foraging Near Water",
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-13T13:16:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 5°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-03-17T12:50:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Clear/Sunny, 3°C",
+        "photoUrl": "/demo-photos/pier2-rocky-shore-01.jpg",
+        "sightings": [
+          {
+            "species": "Rock Pigeon",
+            "count": 2,
+            "behaviors": [
+              "Foraging Near Water",
+              "Drinking"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 3,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "foleySquare": {
+    "name": "Foley Square",
+    "latitude": 40.7141,
+    "longitude": -74.0021,
+    "placeName": "Civic Center, Manhattan",
+    "spotType": "puddle",
+    "moments": [
+      {
+        "capturedAt": "2026-01-06T14:50:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Partly Cloudy, 4°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Rock Pigeon",
+            "count": 1,
+            "behaviors": [
+              "Drinking"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-07T14:00:00",
+        "waterCondition": "puddle_only",
+        "note": null,
+        "weather": "Partly Cloudy, 9°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "European Starling",
+            "count": 1,
+            "behaviors": [
+              "Water Inspection"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-11T14:51:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 6°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-01-15T15:08:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Clear/Sunny, 2°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "American Robin",
+            "count": 8,
+            "behaviors": [
+              "Drinking"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 3,
+            "behaviors": [
+              "Drinking"
+            ]
+          },
+          {
+            "species": "European Starling",
+            "count": 5,
+            "behaviors": [
+              "Drinking"
+            ]
+          },
+          {
+            "species": "European Starling",
+            "count": 16,
+            "behaviors": [
+              "Bathing",
+              "Drinking"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-21T14:42:00",
+        "waterCondition": "frozen",
+        "note": null,
+        "weather": "Clear/Sunny, -1°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-01-29T15:00:00",
+        "waterCondition": "snow_ice_present",
+        "note": null,
+        "weather": null,
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-02-05T11:19:00",
+        "waterCondition": "snow_ice_present",
+        "note": "Many birds around the park overall. I could heard many bird songs.",
+        "weather": "Partly Cloudy, -4°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "European Starling",
+            "count": 2,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 3,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-09T12:34:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Clear/Sunny, -4°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-02-19T11:44:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 5°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-02-21T15:22:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 7°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Rock Pigeon",
+            "count": 2,
+            "behaviors": [
+              "Drinking"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 8,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "White-throated Sparrow",
+            "count": 2,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-02T13:22:00",
+        "waterCondition": "frozen",
+        "note": null,
+        "weather": "Mostly Cloudy, 0°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-03-04T10:58:00",
+        "waterCondition": "frozen",
+        "note": null,
+        "weather": "Partly Cloudy, 7°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Rock Pigeon",
+            "count": 2,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-09T13:38:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Clear/Sunny, 18°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-03-14T13:25:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Clear/Sunny, 9°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-03-16T11:20:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 13°C",
+        "photoUrl": "/demo-photos/foley-square-01.jpg",
+        "sightings": []
+      }
+    ]
+  },
+  "thomasPainePark": {
+    "name": "Thomas Paine Park",
+    "latitude": 40.7146,
+    "longitude": -74.0027,
+    "placeName": "Civic Center, Manhattan",
+    "spotType": "temporary_pool",
+    "moments": [
+      {
+        "capturedAt": "2026-01-07T14:23:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Partly Cloudy, 9°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Rock Pigeon",
+            "count": 16,
+            "behaviors": [
+              "Drinking",
+              "Foraging Near Water",
+              "Following Other Birds"
+            ]
+          },
+          {
+            "species": "European Starling",
+            "count": 16,
+            "behaviors": [
+              "Drinking",
+              "Following Other Birds"
+            ]
+          },
+          {
+            "species": "American Robin",
+            "count": 16,
+            "behaviors": [
+              "Drinking",
+              "Following Other Birds"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-11T15:13:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 6°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-01-21T14:31:00",
+        "waterCondition": "frozen",
+        "note": null,
+        "weather": "Clear/Sunny, -1°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-01-29T15:11:00",
+        "waterCondition": "snow_ice_present",
+        "note": null,
+        "weather": null,
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-02-19T11:55:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 5°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-03-04T11:10:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Partly Cloudy, 7°C",
+        "photoUrl": "/demo-photos/thomas-paine-park-02.jpg",
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-03-16T11:30:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 13°C",
+        "photoUrl": "/demo-photos/thomas-paine-park-01.jpg",
+        "sightings": [
+          {
+            "species": "European Starling",
+            "count": 1,
+            "behaviors": [
+              "Bathing"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 3,
+            "behaviors": [
+              "Foraging Near Water",
+              "Perching Near Water"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "collectPondPark": {
+    "name": "Collect Pond Park",
+    "latitude": 40.7168,
+    "longitude": -74.0026,
+    "placeName": "Civic Center, Manhattan",
+    "spotType": "pond",
+    "moments": [
+      {
+        "capturedAt": "2026-01-11T15:33:00",
+        "waterCondition": "dry",
+        "note": null,
+        "weather": "Mostly Cloudy, 6°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Rock Pigeon",
+            "count": 16,
+            "behaviors": [
+              "Drinking",
+              "Perching Near Water",
+              "Foraging Near Water",
+              "Following Other Birds"
+            ]
+          },
+          {
+            "species": "European Starling",
+            "count": 1,
+            "behaviors": [
+              "Drinking"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-01-21T14:20:00",
+        "waterCondition": "frozen",
+        "note": null,
+        "weather": "Clear/Sunny, -1°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-01-29T15:23:00",
+        "waterCondition": "snow_ice_present",
+        "note": null,
+        "weather": null,
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Rock Pigeon",
+            "count": 5,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 5,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "European Starling",
+            "count": 3,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-05T11:35:00",
+        "waterCondition": "snow_ice_present",
+        "note": null,
+        "weather": "Partly Cloudy, -4°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Rock Pigeon",
+            "count": 36,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 2,
+            "behaviors": [
+              "Drinking"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 4,
+            "behaviors": [
+              "Water Inspection"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 1,
+            "behaviors": [
+              "Snow Ingestion"
+            ]
+          },
+          {
+            "species": "American Robin",
+            "count": 1,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-09T12:57:00",
+        "waterCondition": "snow_ice_present",
+        "note": null,
+        "weather": "Clear/Sunny, -4°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Rock Pigeon",
+            "count": 2,
+            "behaviors": [
+              "Drinking"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 36,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-14T12:43:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Clear/Sunny, 4°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Rock Pigeon",
+            "count": 16,
+            "behaviors": [
+              "Bathing"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 16,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 1,
+            "behaviors": [
+              "Drinking"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 8,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "European Starling",
+            "count": 2,
+            "behaviors": [
+              "Bathing"
+            ]
+          },
+          {
+            "species": "European Starling",
+            "count": 8,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "House Sparrow",
+            "count": 1,
+            "behaviors": [
+              "Bathing"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-19T12:07:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 5°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Rock Pigeon",
+            "count": 36,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 1,
+            "behaviors": [
+              "Drinking"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-02-26T11:59:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "4°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Rock Pigeon",
+            "count": 5,
+            "behaviors": [
+              "Bathing",
+              "Perching Near Water"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 16,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 2,
+            "behaviors": [
+              "Drinking"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-02T13:37:00",
+        "waterCondition": "partially_frozen",
+        "note": null,
+        "weather": "Mostly Cloudy, 0°C",
+        "photoUrl": null,
+        "sightings": []
+      },
+      {
+        "capturedAt": "2026-03-04T11:22:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Partly Cloudy, 7°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Rock Pigeon",
+            "count": 4,
+            "behaviors": [
+              "Bathing"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 1,
+            "behaviors": [
+              "Drinking"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 16,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "European Starling",
+            "count": 8,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-09T13:53:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Clear/Sunny, 18°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Rock Pigeon",
+            "count": 36,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 1,
+            "behaviors": [
+              "Attempted Drinking"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 2,
+            "behaviors": [
+              "Drinking"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-14T13:41:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Clear/Sunny, 9°C",
+        "photoUrl": null,
+        "sightings": [
+          {
+            "species": "Rock Pigeon",
+            "count": 2,
+            "behaviors": [
+              "Drinking"
+            ]
+          },
+          {
+            "species": "American Robin",
+            "count": 1,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 36,
+            "behaviors": [
+              "Perching Near Water"
+            ]
+          }
+        ]
+      },
+      {
+        "capturedAt": "2026-03-16T11:43:00",
+        "waterCondition": "full",
+        "note": null,
+        "weather": "Mostly Cloudy, 13°C",
+        "photoUrl": "/demo-photos/collect-pond-01.jpg",
+        "sightings": [
+          {
+            "species": "Rock Pigeon",
+            "count": 16,
+            "behaviors": [
+              "Bathing"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 5,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "European Starling",
+            "count": 1,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          },
+          {
+            "species": "Rock Pigeon",
+            "count": 8,
+            "behaviors": [
+              "Foraging Near Water"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

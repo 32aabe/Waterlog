@@ -17,8 +17,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { getSpotTypeLabel, getWaterConditionLabel, getBehaviorInfinitive, formatSighting } from "@/const";
 import { ArrowLeft, Plus, Droplets, Bird } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistance } from "date-fns";
 import { dayHeaderLabel, groupByDay, shortDateLabel } from "@/lib/dates";
+import { demoAwareNow } from "@/lib/demoSpots";
 import { resolveWaterStateStyle } from "@/lib/spotVisual";
 import { SpotIllustration } from "@/components/SpotIllustration";
 import type { MomentSummary } from "../../../server/db";
@@ -166,13 +167,13 @@ export default function SpotStory() {
           )}
           {dayGroups.map(group => (
             <div key={group.key} className="mb-5">
-              <p className="mb-2 font-display text-sm text-muted-foreground">{dayHeaderLabel(group.date)}</p>
+              <p className="mb-2 font-display text-sm text-muted-foreground">{dayHeaderLabel(group.date, demoAwareNow())}</p>
               <div className="divide-y divide-border">
                 {group.items.map(moment => (
                   <div key={moment.id} className="py-3 first:pt-0">
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(moment.capturedAt), { addSuffix: true })}
+                        {formatDistance(new Date(moment.capturedAt), demoAwareNow(), { addSuffix: true })}
                       </p>
                       {moment.waterCondition && (
                         <span className="flex items-center gap-1 text-xs text-muted-foreground">
