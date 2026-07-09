@@ -12,6 +12,7 @@ import { getLoginUrl } from "@/const";
 import { APP_NAME, APP_TAGLINE, getSpotTypeLabel } from "@/const";
 import { spawnRipple } from "@/lib/ripple";
 import { markColor, markCoreColor, markPresence, relationshipDepth, rippleMarkMetrics, PULSING_WATER_STATES } from "@/lib/spotVisual";
+import { isDemoSpotId } from "@/lib/demoSpots";
 import { LocateFixed, Plus, Waves } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SpotSummary } from "../../../server/db";
@@ -465,14 +466,33 @@ export default function MapHome() {
             </p>
             <p className="mt-2.5 text-sm text-foreground/90">{spotSentence(selected)}</p>
             <div className="mt-4 flex gap-2">
-              <Button size="sm" className="flex-1" onClick={() => navigate(`/spot/${selected.id}`)}>
+              <Button
+                size="sm"
+                className="flex-1"
+                onClick={() =>
+                  // A demo spot (id < 0, see lib/demoSpots.ts) doesn't exist
+                  // server-side — the real Spot screen's trpc.spots.getById
+                  // would just come back null for it, and it shouldn't
+                  // depend on the server anyway (see MapFallback's own
+                  // comment on AIR_DEMO_SPOTS). Its own local-only detail
+                  // route never touches the network.
+                  navigate(isDemoSpotId(selected.id) ? `/demo-spot/${selected.id}` : `/spot/${selected.id}`)
+                }
+              >
                 See its story
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 className="flex-1"
-                onClick={() => navigate(`/capture?spotId=${selected.id}`)}
+                onClick={() =>
+                  // Same reasoning: a demo spot's id can't be attached to a
+                  // real moment (moments.create would 404 "Water spot not
+                  // found" server-side). Land on plain Capture instead —
+                  // same flow as the main + tab, creates a real new spot at
+                  // the visitor's own location.
+                  navigate(isDemoSpotId(selected.id) ? "/capture" : `/capture?spotId=${selected.id}`)
+                }
               >
                 <Plus className="h-4 w-4" /> Log a moment
               </Button>

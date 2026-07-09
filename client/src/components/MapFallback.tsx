@@ -2,6 +2,7 @@ import { LocateFixed } from "lucide-react";
 import { spawnRipple } from "@/lib/ripple";
 import { markColor, markCoreColor, markPresence, relationshipDepth, rippleMarkMetrics, PULSING_WATER_STATES } from "@/lib/spotVisual";
 import { distanceMeters } from "@/lib/geo";
+import { AIR_DEMO_SPOTS } from "@/lib/demoSpots";
 import type { SpotSummary } from "../../../server/db";
 
 type LatLng = { lat: number; lng: number };
@@ -116,6 +117,13 @@ function normalizePositions(spots: SpotSummary[], userCoords: LatLng | null) {
  * ripple marks as the real map (see lib/spotVisual.ts), laid out over a
  * soft gradient wash with a quiet suggestion of water winding through it,
  * rather than literal tiles.
+ *
+ * When the caller has no real spots yet — an empty account, or (the
+ * emergency case this exists for) a deployed demo whose server-side
+ * seeding didn't run — falls back to AIR_DEMO_SPOTS (see lib/demoSpots.ts)
+ * so the fallback map is never actually empty. Purely client-side and
+ * synchronous: nothing here waits on a network request, so this can't
+ * ever show a blank map while something loads.
  */
 export function MapFallback({
   spots,
@@ -128,7 +136,8 @@ export function MapFallback({
   onSelect: (spot: SpotSummary) => void;
   onLocate: () => void;
 }) {
-  const { forSpot, user } = normalizePositions(spots, userCoords);
+  const displaySpots = spots.length > 0 ? spots : AIR_DEMO_SPOTS;
+  const { forSpot, user } = normalizePositions(displaySpots, userCoords);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-gradient-to-b from-[var(--water-mist-2)] via-[var(--paper)] to-[var(--water-mist)]">
@@ -142,7 +151,7 @@ export function MapFallback({
         <path d="M -10 38 Q 32 28, 55 40 T 130 33" stroke="var(--water-soft)" strokeWidth="1.5" fill="none" opacity="0.28" />
       </svg>
 
-      {spots.map(spot => {
+      {displaySpots.map(spot => {
         const depth = relationshipDepth(spot);
         const { haloSize, coreSize, glowBlur, glowSpread } = rippleMarkMetrics(depth);
         const color = markColor(spot);

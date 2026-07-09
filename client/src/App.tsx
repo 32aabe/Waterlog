@@ -11,6 +11,7 @@ import Capture from "./pages/Capture";
 import Spots from "./pages/Spots";
 import Profile from "./pages/Profile";
 import SpotStory from "./pages/SpotStory";
+import DemoSpotDetail from "./pages/DemoSpotDetail";
 
 // Every screen sits behind the bottom TabBar — the entire primary nav for
 // Waterlog (see §04/§06 of the Ver.3 design proposal). Login is enforced
@@ -26,6 +27,7 @@ function Router() {
       <Route path={"/spots"} component={Spots} />
       <Route path={"/profile"} component={Profile} />
       <Route path={"/spot/:id"} component={SpotStory} />
+      <Route path={"/demo-spot/:id"} component={DemoSpotDetail} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
